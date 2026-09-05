@@ -1,7 +1,5 @@
 # Grok Bot 0.18 —— 重建与扩展版
 
-![Grok Bot Router 设置](docs/assets/router-settings.png)
-
 对公开发布的 Grok Bot 0.18.0 桌面应用的非官方、面向源码重建。支持 macOS arm64 与未签名的 Windows x64 便携目录。
 
 Windows 便携版提供**免登录 Local 9Router 工作区**：9Router 提供模型推理，本地 Docker 虚拟机提供 agent/shell/文件/电脑能力，不创建或模拟 Cursor 会话。
