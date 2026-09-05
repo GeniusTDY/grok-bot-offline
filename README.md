@@ -79,7 +79,10 @@ or a pixel-perfect replacement for the packaged renderer.
 ## Preserved original installers
 
 Research copies of the exact 0.18.0 installers live under
-`research-archives/original/0.18.0/` and are stored with Git LFS:
+`research-archives/original/0.18.0/`. The macOS arm64 DMG is stored with Git LFS;
+the Windows x64 Setup.exe is **not** tracked in git and is distributed as a
+GitHub Release asset instead (see below), so clones stay small and need no LFS
+pull for the Windows build path:
 
 | Platform | File | SHA-256 |
 | --- | --- | --- |
@@ -88,6 +91,25 @@ Research copies of the exact 0.18.0 installers live under
 
 See [research-archives/README.md](research-archives/README.md) for source URLs,
 sizes, verification commands, and the machine-readable artifact manifest.
+
+### Obtaining the Windows Setup.exe (Release-asset distribution)
+
+Download it once (checksum below) and place it at
+`research-archives/original/0.18.0/windows-x64/Grok_Bot_0.18.0_Setup.exe`:
+
+```
+https://github.com/GeniusTDY/grok-bot-offline/releases/download/v0.18.0-offline/Grok_Bot_0.18.0_Setup.exe
+```
+
+```sh
+# verify before use
+sha256sum Grok_Bot_0.18.0_Setup.exe
+# 464079a15ef5fa8b61ccea8fffcc78f63cfcf6df65fb0ad5e725d8b95f7e437e
+```
+
+> Because the Setup.exe is a Release asset (not git-tracked), do **not** run
+> `git lfs pull` expecting it. On an air-gapped target, download once on a
+> networked machine and carry it over to the path above.
 
 ## Current features
 
@@ -218,7 +240,11 @@ bundled copy instead of a system npm.
 
 The project already bundles these offline prerequisites:
 - **vendored Windows Node** → `offline/vendor/node/win32-x64/` (node.exe + npm)
-- **official Setup.exe** → `research-archives/original/0.18.0/windows-x64/`
+
+The **official Setup.exe** is bundled by hand at
+`research-archives/original/0.18.0/windows-x64/` only when you place the
+Release-asset download there (see "Obtaining the Windows Setup.exe" above); it is
+not tracked in git.
 
 The only thing not bundled (because it is platform-specific) is the Windows
 `node_modules` snapshot. It is produced in a single online step below.
