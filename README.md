@@ -1,335 +1,200 @@
-# Grok Bot 0.18 — reconstructed and extended
+# Grok Bot 0.18 —— 重建与扩展版
 
-![Grok Bot Router settings with Codex selected and local usage totals](docs/assets/router-settings.png)
+![Grok Bot Router 设置，已选择 Codex 并显示本地用量统计](docs/assets/router-settings.png)
 
-This repository is an unofficial, source-oriented reconstruction of the
-publicly shipped Grok Bot 0.18.0 desktop app. The reviewed build path supports
-macOS arm64 and an unsigned, local-only Windows x64 portable directory.
+本仓库是对公开发布的 Grok Bot 0.18.0 桌面应用的非官方、面向源码的重建。经过审校的构建路径支持 macOS arm64，以及一个未签名、仅本机的 Windows x64 便携目录。
 
-The project began as an attempt to understand how the desktop app was put
-together. It now contains readable TypeScript implementations of its Electron,
-host, coordinator, local-execution, protocol, and renderer boundaries, plus a
-deterministic toolchain for turning those sources back into a working macOS
-application.
+这个项目最初的目的是弄清该桌面应用是如何被组装起来的。现在它包含了 Electron、host、协调器、本地执行、协议、渲染层等边界对应的可读 TypeScript 实现，外加一套确定性工具链，可把这些源码重新编译回一个可运行的 macOS 应用。
 
-The Windows portable build also has a login-independent **Local 9Router
-workspace**. In that mode 9Router supplies model inference while an owned local
-Docker VM supplies Grok Bot's agent, shell, file, and computer capabilities. It
-does not create or emulate a Cursor account session.
+Windows 便携版还带有一个**无需登录的 Local 9Router 工作区**。在该模式下，9Router 负责模型推理，而一个自有本地 Docker 虚拟机负责 Grok Bot 的 agent、shell、文件与电脑能力。它不会创建或模拟任何 Cursor 账号会话。
 
-It also adds a few practical experiments:
+它还加入了一些实用性实验：
 
-- an inference router for Cursor, Claude Code, Codex, OpenRouter, and local
-  OpenAI-compatible APIs such as 9Router;
-- Grok Bot plugin/MCP tools across the routed providers;
-- local usage tracking for routed inference;
-- an optional local Docker sandbox in place of the remote box, including a
-  Windows Local 9Router workspace that does not require Cursor sign-in; and
-- a reconstructed settings surface integrated into the polished shipped UI.
+- 面向 Cursor、Claude Code、Codex、OpenRouter，以及 9Router 等本地 OpenAI 兼容 API 的推理路由器；
+- 跨这些路由提供方的 Grok Bot 插件/MCP 工具；
+- 路由推理的本地用量统计；
+- 用可选的本地 Docker 沙箱替代远端箱子，其中就包含一个无需 Cursor 登录的 Windows Local 9Router 工作区；以及
+- 一个整合进精致官方 UI 的重建设置界面。
 
-This is a hacking and research project, not Anysphere's original monorepo and
-not an official Grok Bot release. It remains a reconstruction of the pinned
-0.18.0 application; the Local 9Router workspace does not make it the latest
-official Grok Bot. Names and module boundaries inferred from a compiled
-application may differ from the original source.
+这是一个研究与破解性质的项目，既不是 Anysphere 的原始 monorepo，也不是官方 Grok Bot 发行版。它保持对固定版本 0.18.0 应用的重建；Local 9Router 工作区并不使它成为最新官方 Grok Bot。那些从编译产物中推断出的名称和模块边界，可能与原始源码存在差异。
 
-## What is in the repository?
+## 仓库里有什么？
 
-The checked-in tree contains the reviewed reconstruction, tests, manifests,
-build scripts, and Git LFS preservation copies of the original macOS arm64 and
-Windows x64 installers. It deliberately does **not** commit the extracted
-upstream application, build output, local credentials, or the large forensic
-recovery workspace.
+已提交到仓库的目录树包含经审校的重建源码、测试、清单、构建脚本，以及 macOS arm64 与 Windows x64 原始安装程序的 Git LFS 留存副本。它刻意**不**提交提取出的上游应用、构建产物、本地凭据，或庞大的取证恢复工作区。
 
-The public Grok Bot 0.18.0 application is instead treated as a pinned build
-input. During bootstrap, the toolchain downloads it, verifies its SHA-256
-identity, and extracts the pieces required to assemble the reconstruction.
+公开的 Grok Bot 0.18.0 应用反而被当作一个固定的构建输入。在 bootstrap 阶段，工具链会下载它、校验其 SHA-256 身份，并提取出组装重建所必需的部分。
 
-The resulting macOS app is a hybrid by design:
+产物 macOS 应用在设计上是混合体：
 
-- application runtimes are compiled from the readable sources under `source/`;
-- the polished shipped renderer remains the UI baseline;
-- a narrow deterministic transform adds the reconstructed Router settings UI;
-- original and patched renderer chunk hashes are recorded and verified; and
-- the finished app uses a separate bundle identifier and an ad-hoc signature.
+- 应用运行时由 `source/` 下的可读源码编译；
+- 精修的官方渲染器仍作为 UI 基线；
+- 一个窄而确定性的转换加入了重建的 Router 设置 UI；
+- 原始与打过补丁的渲染器 chunk 哈希会被记录并校验；且
+- 最终应用使用独立的 bundle 标识符和临时签名。
 
-The upstream app installed on the machine is never overwritten.
+机器上已安装的上游应用永远不会被覆盖。
 
-### Why retain the shipped renderer?
+### 为何保留官方渲染器？
 
-The distributed application did not include the original frontend source or
-source maps. It contained optimized, minified production JavaScript and CSS
-chunks: enough to inspect behavior and recover contracts, but not the authored
-React components, names, comments, file structure, or design-system source.
+发布的应用并不包含原始前端源码或 source map。它只包含优化压缩过的生产 JavaScript 与 CSS chunk：足以考察行为、恢复契约，却不足以得到原创的 React 组件、名称、注释、文件结构或设计系统源码。
 
-Recreating the complete frontend with the same polish and behavior would have
-been a separate, much larger reverse-engineering project. It was not a realistic
-goal for a weekend build. The practical choice for the polished macOS package
-was therefore to reconstruct the runtime and control-plane code, retain the
-checksum-pinned shipped renderer, and make the smallest auditable UI patch
-needed for the new Router settings. The Windows portable path instead packages
-the reviewed clean-source renderer so OpenAI-compatible/9Router settings remain
-in the normal build graph rather than a platform-specific minified patch.
+要完全复刻同样精致度和行为的完整前端，就会是一个更大、另外独立的逆向工程项目，对于一个周末构建来说并不现实。因此，制作精致的 macOS 包时务实的做法是：重建运行时与控制面代码，保留按哈希锁定的官方渲染器，并做一处为新的 Router 设置所需的最小、可审计的 UI 补丁。Windows 便携路径则改而打包经审校的干净源码渲染器，使 OpenAI 兼容 / 9Router 设置在正常构建图中生效，而不是走平台特定的压缩补丁。
 
-`frontend/` is a readable partial reconstruction and design workspace. It is
-useful for understanding UI contracts and experimenting with clean components,
-but it should not be mistaken for Anysphere's missing original frontend source
-or a pixel-perfect replacement for the packaged renderer.
+`frontend/` 是一份可读的部分重建与设计工作区。它有助于理解 UI 契约、实验干净的组件，但不应被误认为是 Anysphere 缺失的原始前端源码，也不应被当作官方渲染器的像素级替代品。
 
-## Preserved original installers
+## 保留的原始安装程序
 
-Research copies of the exact 0.18.0 installers live under
-`research-archives/original/0.18.0/`. The macOS arm64 DMG is stored with Git LFS;
-the Windows x64 Setup.exe is **not** tracked in git and is distributed as a
-GitHub Release asset instead (see below), so clones stay small and need no LFS
-pull for the Windows build path:
+精确的 0.18.0 安装程序的研究副本位于 `research-archives/original/0.18.0/`。macOS arm64 DMG 使用 Git LFS 存储；Windows x64 Setup.exe **不**被 git 跟踪，而是作为一个 GitHub Release 资产分发（见下），因此克隆体积保持很小，Windows 构建路径无需 LFS pull：
 
-| Platform | File | SHA-256 |
+| 平台 | 文件 | SHA-256 |
 | --- | --- | --- |
 | macOS arm64 | `macos-arm64/Grok_Bot_0.18.0.dmg` | `a253ccd8aab01e083f9812a0264354c5034d8ba7f0610bbb557e82ae77d203eb` |
 | Windows x64 | `windows-x64/Grok_Bot_0.18.0_Setup.exe` | `464079a15ef5fa8b61ccea8fffcc78f63cfcf6df65fb0ad5e725d8b95f7e437e` |
 
-See [research-archives/README.md](research-archives/README.md) for source URLs,
-sizes, verification commands, and the machine-readable artifact manifest.
+源码 URL、体积、校验命令以及机器可读的产物清单，参见 [research-archives/README.md](research-archives/README.md)。
 
-### Obtaining the Windows Setup.exe (Release-asset distribution)
+### 获取 Windows Setup.exe（通过 Release 资产分发）
 
-Download it once (checksum below) and place it at
-`research-archives/original/0.18.0/windows-x64/Grok_Bot_0.18.0_Setup.exe`:
+一次性下载它（校验和见下），并放置到
+`research-archives/original/0.18.0/windows-x64/Grok_Bot_0.18.0_Setup.exe`：
 
 ```
 https://github.com/GeniusTDY/grok-bot-offline/releases/download/v0.18.0-offline/Grok_Bot_0.18.0_Setup.exe
 ```
 
 ```sh
-# verify before use
+# 使用前先校验
 sha256sum Grok_Bot_0.18.0_Setup.exe
 # 464079a15ef5fa8b61ccea8fffcc78f63cfcf6df65fb0ad5e725d8b95f7e437e
 ```
 
-> Because the Setup.exe is a Release asset (not git-tracked), do **not** run
-> `git lfs pull` expecting it. On an air-gapped target, download once on a
-> networked machine and carry it over to the path above.
+> 因为 Setup.exe 是 Release 资产（不在 git 中跟踪），**不要**指望通过
+> `git lfs pull` 拉取它。在离线机上，请先在联网机器上下载一次，再带到上面指定的路径。
 
-## Current features
+## 当前特性
 
-### Inference Router
+### 推理路由器
 
-Open **Settings → Router** to choose the backend used for new turns:
+打开 **Settings → Router** 选择新回合所用的后端：
 
-| Provider | Authentication | Tool support |
+| 提供方 | 认证方式 | 工具支持 |
 | --- | --- | --- |
-| Cursor | Existing Grok Bot/Cursor session | Native Grok Bot tools and plugins |
-| Claude Code | Existing Claude Code login | Routed Grok Bot MCP tools |
-| Codex | Existing local ChatGPT/Codex login | Direct Responses transport with Grok Bot tools |
-| OpenRouter | API key saved through the desktop secrets bridge | Grok Bot tool-execution loop |
-| OpenAI-compatible / 9Router | Dedicated OS-encrypted proxy/client API key | Native agents, shell, files, and computer in the Local Docker workspace; account-only cloud features stay unavailable |
+| Cursor | 现有的 Grok Bot/Cursor 会话 | 原生 Grok Bot 工具与插件 |
+| Claude Code | 现有的 Claude Code 登录 | 路由的 Grok Bot MCP 工具 |
+| Codex | 现有的本地 ChatGPT/Codex 登录 | 使用 Grok Bot 工具的 Direct Responses 传输 |
+| OpenRouter | 通过桌面 secrets 桥保存的 API key | Grok Bot 工具执行循环 |
+| OpenAI 兼容 / 9Router | 专用、系统加密的 proxy/client API key | 本地 Docker 工作区中的原生 agent、shell、文件与电脑能力；仅账号的云端功能保持不可用 |
 
-Cursor is the default. Claude Code and Codex do not require separate API keys
-when their local clients are already authenticated. The application preserves
-streaming responses, thinking state, reactions, rich plugin mentions, and MCP
-tool execution across routed conversations.
+Cursor 是默认项。当 Claude Code 与 Codex 的本地客户端已认证时，它们不需要额外的 API key。应用会在被路由的对话中保留流式响应、思考状态、reaction、富插件提及，以及 MCP 工具执行。
 
-#### 9Router / OpenAI-compatible setup
+#### 9Router / OpenAI 兼容设置
 
-Use the **current stable 9Router release** (v0.5.35 when this path was reviewed).
-On a fresh Windows portable profile, choose **Configure 9Router** on the
-sign-in screen; otherwise open **Settings → Router**. Select
-**OpenAI-compatible / 9Router** (the internal provider ID is `cli-proxy`). Save
-the 9Router **proxy/client API key** (not its management key). If the exact
-model ID is not known, first save the URL and key with the model blank, select
-**Test & load models**, choose a model, and save again. Manual model entry
-remains available because 9Router's `/v1/models` result can omit free or
-no-auth models.
+请使用**当前稳定版 9Router**（审校该路径时是 v0.5.35）。在全新 Windows 便携 profile 上，在登录界面选择 **Configure 9Router**；否则打开 **Settings → Router**。选择 **OpenAI-compatible / 9Router**（内部提供方 ID 是 `cli-proxy`）。保存 9Router 的 **proxy/client API key**（不要用其管理 key）。若不确定精确的模型 ID，可先只保存 URL 与 key、把模型留空，选择 **Test & load models**，选一个模型，再次保存。手动输入模型仍然可用，因为 9Router 的 `/v1/models` 返回结果可能省略免费或无认证的模型。
 
-Chat Completions is the default protocol because it currently has the broadest
-9Router compatibility. Auto also uses Chat Completions first. Explicit
-Responses remains available for non-native routes, but the Local Docker native
-agent path rejects it because tool-call replay has not been verified there. Use
-only authenticated `/v1` endpoints; the `/codex`
-rewrite is intentionally rejected. Plain HTTP is denied by default outside
-loopback. The separate **Allow HTTP over Tailscale** switch permits only literal
-Tailscale IP addresses; it does not permit arbitrary private or public HTTP
-hosts. MagicDNS names are deliberately rejected for HTTP. Remote DNS names
-require HTTPS and the separate HTTPS opt-in. Numeric-range validation does not
-prove which Windows route is active, so confirm `tailscale ping 100.112.10.8`
-succeeds before enabling plain HTTP. The Local Docker workspace does not share
-Windows loopback: `127.0.0.1` inside its host container refers to that container,
-not to a same-PC Windows 9Router process.
+Chat Completions 是默认协议，因为它当前对 9Router 的兼容性最广。Auto 也会优先使用 Chat Completions。显式的 Responses 对非原生路由仍可用，但本地 Docker 原生 agent 路径会拒绝它，因为其 tool-call 重放尚未被验证。请只使用经过认证的 `/v1` 端点；`/codex` 重写会被有意拒绝。在 loopback 之外，明文 HTTP 默认被拒绝。单独的 **Allow HTTP over Tailscale** 开关仅允许字面上的 Tailscale IP 地址；它不允许多个任意的私有或公网 HTTP 主机。MagicDNS 名称会被有意拒绝用于 HTTP。远程 DNS 名称需要 HTTPS 与单独的 HTTPS 开关。数字区间校验并无法证明当前激活的是哪个 Windows 路由，因此在启用明文 HTTP 之前，请先确认 `tailscale ping 100.112.10.8` 成功。本地 Docker 工作区不共享 Windows loopback：其 host 容器内的 `127.0.0.1` 指的是该容器自身，而不是同一台 PC 上的 Windows 9Router 进程。
 
-The 9Router key is stored in its own fixed-purpose Electron `safeStorage` file.
-It is never placed in user secrets, box-secret synchronization, environment
-variables, settings, renderer status responses, or transcripts. If OS secure
-storage is unavailable, it is held only in memory for the current session.
-Before publishing the Local Docker workspace as ready, the authenticated local
-gateway installs that memory lease and invokes a no-credential-argument
-`/v1/models` probe inside the Docker host.
-Immediately before a local native turn, the authenticated local gateway gives
-the Docker host a short-lived, memory-only credential lease. The host cannot
-read a prior lease back through that gateway and does not persist it. Changing
-the endpoint origin (scheme, host, or port) does not reuse the previous key;
-the user must enter the key again.
+9Router key 存储在一个独立用途的 Electron `safeStorage` 文件中。它永远不会被放入用户 secrets、box-secret 同步、环境变量、设置、渲染器状态响应或 transcript 中。如果操作系统安全存储不可用，它仅仅保存在当前会话的内存里。在将本地 Docker 工作区宣布为就绪之前，经认证的本地 gateway 会装入该内存租约，并在 Docker host 内调用一个不带凭据参数 `/v1/models` 探针。
+在一次本地原生回合开始前，经认证的本地 gateway 会给 Docker host 一个短时、仅存内存的凭据租约。host 无法通过该 gateway 读回之前的租约，也不会持久化它。改变端点来源（scheme、host 或 port）不会复用之前的 key；用户必须重新输入 key。
 
-The login-free workspace exposes the local agent runtime and its shell, file,
-and computer tools. It does not fabricate a Cursor login, so shared rooms,
-remote boxes, account-backed plugins, billing, and other cloud/account-only
-features remain unavailable until a real account session exists.
+免登录工作区会暴露本地 agent 运行时及其 shell、文件与电脑工具。它不会伪造 Cursor 登录，因此在出现真实账号会话之前，共享房间、远端箱子、账号背书的插件、计费以及其他云端/仅账号功能仍不可用。
 
-**Usage & Billing** shows the locally recorded request and token totals for
-providers that return usage data. These figures are activity records, not an
-authoritative provider invoice.
+**Usage & Billing** 会显示对返回用量数据的提供方进行本地记录的请求与 token 统计。这些数字是活动记录，并非权威的提供方账单。
 
-### Local Docker sandbox
+### 本地 Docker 沙箱
 
-The Router page also has a **Use local Docker VM** toggle. When enabled, Grok
-Bot runs its box host and execution daemon in an owned local container instead
-of connecting to the remote sandbox.
+Router 页还有一个 **Use local Docker VM** 开关。启用后，Grok Bot 会在一个自有本地容器中运行其 box host 与执行守护进程，而不再连接远端沙箱。
 
-The container:
+该容器：
 
-- pins the reviewed linux/amd64 sandbox image by immutable manifest digest;
-- publishes only gateway/VNC ports `1340`, `6080`, and `6081` to Windows
-  loopback; execution/control ports `1337`, `1339`, and `8790` are not
-  published to the host;
-- mounts the reviewed host bundle and stock-daemon launcher read-only and
-  replaces the owned container when their content hashes change;
-- in standalone 9Router mode, runs the stock Computer-capable model-facing
-  daemon as the non-root `box` user with no effective capabilities and
-  `no_new_privs`; its directly spawned window forks inherit that identity, and
-  this login-free model path has no root shell;
-- gives only the root host process a read-only, root-owned gateway-token volume
-  that the model-facing daemon cannot read;
-- uses a short-lived in-memory 9Router credential lease in the login-free
-  workspace, or the user's existing provider authentication where needed;
-- omits host Codex/Claude credential mounts, host-control environment values,
-  and raw-packet capture in standalone 9Router mode;
-- is validated before the coordinator connects; and
-- is stopped or replaced through the same settings lifecycle.
+- 通过不可变的 manifest digest 锁定经审校的 linux/amd64 沙箱镜像；
+- 只把 gateway/VNC 端口 `1340`、`6080`、`6081` 发布到 Windows loopback；执行/控制端口 `1337`、`1339`、`8790` 不会发布到 host；
+- 以只读方式挂载经审校的 host bundle 与 stock-daemon 启动器，当它们的 content hash 变化时替换自有容器；
+- 在独立 9Router 模式下，以非 root 的 `box` 用户、不带有效 capabilities 且带有 `no_new_privs` 的方式运行带 Computer 能力的 stock 模型侧守护进程；它直接分叉出的窗口进程继承该身份，且这条免登录模型路径没有 root shell；
+- 只给 root host 进程一个只读、root 拥有的 gateway-token 卷，模型侧守护进程无法读取；
+- 在免登录工作区使用短时内存 9Router 凭据租约，或按需复用用户已有的提供方认证；
+- 在独立 9Router 模式下省略 host Codex/Claude 凭据挂载、host 控制环境值，以及裸包抓取；
+- 在协调器连接前完成校验；且
+- 通过同一套设置生命周期被停止或替换。
 
-Docker Desktop, or another compatible local Docker daemon, must be running.
-Remote mode remains the default for account-backed operation. The no-login
-Windows Local 9Router workspace requires **Use local Docker VM** to be enabled.
-These controls do not defend against a Windows or Docker administrator, and an
-agent in the box intentionally retains control of its own workspace and
-browser. Startup live-attests the primary model daemon; later window forks rely
-on inherited restrictions and are not individually live-attested.
+必须运行 Docker Desktop 或其他兼容的本地 Docker 守护进程。对仅账号操作而言，远端模式仍是默认。免登录的 Windows Local 9Router 工作区要求启用 **Use local Docker VM**。这些控制无法抵御 Windows 或 Docker 管理员；容器内的 agent 有意保留对其自身工作区与浏览器的控制。启动时会一次性 live-attest 主模型守护进程；之后的窗口分叉依赖继承的限制，不会被逐个 live-attest。
 
-## Requirements
+## 环境要求
 
-All builds require Node.js 26.5.x and Git LFS. macOS packaging requires Apple
-Silicon and Xcode Command Line Tools. Windows packaging requires Windows 10/11
-x64; the exact 7-Zip extractor is supplied by the locked `7zip-bin` dependency.
-Docker Desktop is optional for other routes but required for the full
-login-independent Local 9Router workspace.
+所有构建都需要 Node.js 26.5.x 与 Git LFS。macOS 打包需要 Apple Silicon 与 Xcode Command Line Tools。Windows 打包需要 Windows 10/11 x64；精确的 7-Zip 解压器由锁定的 `7zip-bin` 依赖提供。Docker Desktop 对其它路由是可选的，但对完整的免登录 Local 9Router 工作区是必需的。
 
-For air-gapped (fully offline) Windows builds, see the "Offline build" section
-below; it lets you build without installing Node or reaching the network.
+对于离线（完全断网）的 Windows 构建，请见下方“离线构建”一节；它让你无需安装 Node 或联网即可完成构建。
 
-## Offline / air-gapped Windows build
+## 离线 / 完全断网的 Windows 构建
 
-### End-to-end one-click deployment (TL;DR)
+### 端到端一键部署（速览）
 
-The whole air-gapped Windows deployment is three steps. Only the Setup.exe
-download and step 2 need a networked machine; the offline target never touches
-the network:
+整个离线 Windows 部署只有三步。只有 Setup.exe 下载与第 2 步需要联网机器；离线目标机器从不接触网络：
 
-1. **Stage the Setup.exe** (once, on any connected machine). Download the Release
-   asset and place/copy it at
-   `research-archives/original/0.18.0/windows-x64/Grok_Bot_0.18.0_Setup.exe` (see
-   "Obtaining the Windows Setup.exe" above).
-2. **Produce the offline snapshots** (once, on a connected Windows x64 machine):
-   `online-fetch.cmd`. This is the only step that talks to the npm registry; it
-   writes `offline/cache/node_modules-snapshot.tar.gz` and
-   `offline/cache/tree-sitter-node-cache.tar.gz`. (On a machine with no Node,
-   run `scripts/offline/bootstrap-windows.ps1` first to stage the vendored Node.)
-3. **Copy the whole repository** (including `offline/` and `research-archives/`)
-   to the offline machine and run `offline-build.cmd`. Output is
-   `dist/Grok Bot 0.18 Reconstructed-win32-x64/`, fully offline and
-   self-contained.
+1. **准备 Setup.exe**（一次，任一台联网机器）。将 Release 资产下载并放置/复制到
+   `research-archives/original/0.18.0/windows-x64/Grok_Bot_0.18.0_Setup.exe`（见上方“获取 Windows Setup.exe”）。
+2. **生成离线快照**（一次，联网 Windows x64 机器）：`online-fetch.cmd`。这是唯一会访问 npm registry 的步骤；它会写出 `offline/cache/node_modules-snapshot.tar.gz` 与 `offline/cache/tree-sitter-node-cache.tar.gz`。（在没有 Node 的机器上，先运行 `scripts/offline/bootstrap-windows.ps1` 来准备 vendored Node。）
+3. **把整个仓库**（含 `offline/` 与 `research-archives/`）**复制到离线机器**，然后运行 `offline-build.cmd`。产物位于 `dist/Grok Bot 0.18 Reconstructed-win32-x64/`，完全离线且自包含。
 
-If the `offline/cache/*.tar.gz` snapshots are already distributed with the
-repository, step 2 can be skipped and the offline machine only runs step 3.
+如果 `offline/cache/*.tar.gz` 快照已随仓库一起分发，那么第 2 步可以跳过，离线机器只需执行第 3 步。
 
 ---
 
-You can package on an offline Windows 10/11 x64 machine that has **no Node.js
-installed and no internet**. Exactly **one** step needs the network; everything
-else is bundled in the project and runs fully offline.
+你可以在**没有安装 Node.js 且没有网络**的离线 Windows 10/11 x64 机器上打包。恰好**一步**需要网络；其它一切都已内置到项目中，可完全离线运行。
 
-Every build script runs its children through `process.execPath` (see
-`scripts/lib/clean-build.mjs`, `scripts/lib/asar-integrity.mjs`, and the
-node-gyp entry points), so launching the build with a vendored Node makes every
-child process run on that same vendored Node. `offline.cmd` also prepends the
-vendor directory to `PATH`, so nested `npm run ...` / `npx` calls resolve to the
-bundled copy instead of a system npm.
+每个构建脚本都会通过 `process.execPath`（见 `scripts/lib/clean-build.mjs`、`scripts/lib/asar-integrity.mjs` 以及 node-gyp 入口）运行其子进程，因此用 vendored Node 启动构建会让所有子进程都运行在同一份 vendored Node 上。`offline.cmd` 还会把 vendor 目录前置到 `PATH`，使内嵌的 `npm run ...` / `npx` 调用解析到内置副本，而不是系统 npm。
 
-The project already bundles these offline prerequisites:
-- **vendored Windows Node** → `offline/vendor/node/win32-x64/` (node.exe + npm)
+项目已内置以下离线前置依赖：
+- **vendored 版 Windows Node** → `offline/vendor/node/win32-x64/`（node.exe + npm）
 
-The **official Setup.exe** is bundled by hand at
-`research-archives/original/0.18.0/windows-x64/` only when you place the
-Release-asset download there (see "Obtaining the Windows Setup.exe" above); it is
-not tracked in git.
+**官方 Setup.exe** 只在你把 Release 资产下载放置到
+`research-archives/original/0.18.0/windows-x64/` 时才按手动方式内置（见上方“获取 Windows Setup.exe”）；它不在 git 中跟踪。
 
-The only thing not bundled (because it is platform-specific) is the Windows
-`node_modules` snapshot. It is produced in a single online step below.
+唯一未内置的东西（因为它平台相关）是 Windows 的 `node_modules` 快照，它在下面唯一的一次联网步骤中生成。
 
-### 1. The only online step: produce the Windows node_modules snapshot
+### 1. 唯一联网步骤：生成 Windows node_modules 快照
 
-Run this **once on a networked Windows x64 machine**. It uses the already-bundled
-vendored Node (no system Node or npm needed); the only network it touches is the
-npm package registry:
+在**联网 Windows x64 机器上运行一次**。它使用已内置的 vendored Node（无需系统 Node 或 npm）；它接触的唯一网络是 npm 包 registry：
 
 ```bat
 online-fetch.cmd
 ```
 
-Which runs `npm ci` → `npm run postinstall` → snapshots the patched `node_modules`
-into `offline/cache/node_modules-snapshot.tar.gz`, then precompiles the native
-`tree-sitter` bindings and snapshots that cache into
-`offline/cache/tree-sitter-node-cache.tar.gz` — all using the vendored Node.
+该脚本会运行 `npm ci` → `npm run postinstall`，把打过补丁的 `node_modules` 快照到 `offline/cache/node_modules-snapshot.tar.gz`，然后预编译原生 `tree-sitter` 绑定并把该缓存快照到 `offline/cache/tree-sitter-node-cache.tar.gz` —— 全部基于 vendored Node。
 
-> The precompiled tree-sitter cache is the difference between an offline target
-> that "just works" and one that still needs an MSVC/Windows SDK toolchain.
-> `package:windows` compiles these bindings via `node-gyp` on first run
-> (`scripts/lib/clean-build.mjs` → `stageNodeTreeSitterRuntime`), but it
-> short-circuits entirely when `.cache/tree-sitter-node/{abi}/{platform}-{arch}`
-> already contains the bindings. `online-fetch.cmd`'s 4th step produces exactly that
-> cache; `offline.cmd restore` lays it back down so the air-gapped machine never
-> compiles and never needs a C++ toolchain.
+> 预编译的 tree-sitter 缓存，决定离线机器是“开箱即用”，还是仍需要一套 MSVC/Windows SDK 工具链。
+> `package:windows` 在首次运行时会通过 `node-gyp` 编译这些绑定
+> （`scripts/lib/clean-build.mjs` → `stageNodeTreeSitterRuntime`），但当
+> `.cache/tree-sitter-node/{abi}/{platform}-{arch}` 已包含绑定时会完全短路。
+> `online-fetch.cmd` 的第 4 步恰好生成该缓存；`offline.cmd restore` 会把它放回原位，
+> 从而使离线机器永远不用编译，也不需要 C++ 工具链。
 
-> If the snapshots are already committed to the repository (i.e. you distribute
-> `offline/cache/*.tar.gz` as part of the project), you can skip this step
-> entirely on the offline target.
+> 如果快照已提交到仓库中（也就是你把 `offline/cache/*.tar.gz` 作为项目的一部分分发），你可以在离线目标上完全跳过这一步。
 
-If you would rather produce the snapshots manually on a Node-capable machine:
+如果你更想在具备 Node 的机器上手动生成快照：
 
 ```sh
 npm ci
 npm run postinstall
 node scripts/offline/fetch-vendor.mjs modules
-node scripts/build-tree-sitter-node.mjs        # only if MSVC toolchain is present
-node scripts/offline/fetch-vendor.mjs nodedeps # snapshot the precompiled cache
+node scripts/build-tree-sitter-node.mjs        # 仅当存在 MSVC 工具链时
+node scripts/offline/fetch-vendor.mjs nodedeps # 快照预编译缓存
 ```
 
-### 2. Air-gapped target: one-shot build
+### 2. 离线目标：一次性构建
 
-On a clean offline machine that has **no Node.js and no internet**, the whole
-Windows build is a single step:
+在没有**任何 Node 与任何网络**的干净离线机器上，整个 Windows 构建是单步操作：
 
 ```bat
 offline-build.cmd
 ```
 
-It restores `node_modules` from the snapshot, then runs
-`bootstrap:windows`, `package:windows`, and `verify:windows` entirely on the
-vendored Node, using the preserved official `Setup.exe`. Output lands at
-`dist/Grok Bot 0.18 Reconstructed-win32-x64/`.
+它会先从快照恢复 `node_modules`，然后完全在 vendored Node 上运行
+`bootstrap:windows`、`package:windows`、`verify:windows`，并使用保留的官方 `Setup.exe`。产物落在 `dist/Grok Bot 0.18 Reconstructed-win32-x64/`。
 
-For finer control, the underlying pieces are still available:
+如需更精细的控制，底层命令仍然可用：
 
 ```bat
-offline.cmd restore          :: restore node_modules from the snapshot
+offline.cmd restore          :: 从快照恢复 node_modules
 offline.cmd run typecheck
 offline.cmd run source:typecheck
 offline.cmd run test:windows
@@ -338,15 +203,11 @@ offline.cmd run verify:windows
 offline.cmd run smoke:windows
 ```
 
-The resulting `dist/Grok Bot 0.18 Reconstructed-win32-x64/` is self-contained
-(no runtime dependency beyond Docker and your local OpenAI-compatible endpoint),
-so it runs fully offline.
+生成的 `dist/Grok Bot 0.18 Reconstructed-win32-x64/` 是自包含的（除 Docker 与你的本地 OpenAI 兼容端点为，没有其它运行时依赖），因此可完全离线运行。
 
-> The Docker sandbox image is pinned by immutable manifest digest and is pulled
-> on first use; on an offline target, import it separately once with
-> `docker load` from a `docker save`d tar staged on the networked machine.
+> Docker 沙箱镜像通过不可变 manifest digest 固定，并在首次使用时拉取；在离线目标上，请先在联网机器上 `docker save` 成 tar，再单独 `docker load` 导入一次。
 
-## macOS quick start
+## macOS 快速开始
 
 ```sh
 git clone <your-repository-url>
@@ -360,34 +221,21 @@ npm run package
 open "dist/Grok Bot 0.18 Reconstructed.app"
 ```
 
-`npm run bootstrap` first uses the Git LFS preservation copy of the pinned
-0.18.0 DMG. If that archive is absent, it falls back to the original public URL;
-`GROK_BOT_018_APP` can also point to an existing application copy. Bootstrap
-verifies both the DMG and `app.asar`, caches the matching Electron runtime, and
-hydrates the ignored `src/app/dist` build input.
+`npm run bootstrap` 首先使用固定版本 0.18.0 DMG 的 Git LFS 留存副本。若该归档缺失，则回退到原始公开 URL；`GROK_BOT_018_APP` 也可以指向一份已有的应用副本。Bootstrap 会校验 DMG 与 `app.asar`、缓存匹配的 Electron 运行时，并填充被忽略的 `src/app/dist` 构建输入。
 
-`npm run package` compiles the reconstructed runtimes, applies the narrow
-renderer/settings transform, creates the app bundle, assigns the reconstructed
-bundle identity, ad-hoc signs it, and verifies the result. Output is written to:
+`npm run package` 编译重建的运行时、应用窄渲染器/设置转换、创建应用 bundle、赋予重建的 bundle 标识、做临时签名，并校验结果。输出写入：
 
 ```text
 dist/Grok Bot 0.18 Reconstructed.app
 ```
 
-Reconstructed packages disable the upstream updater at the packaging boundary
-and default upstream Sentry and telemetry emission off. Explicitly supplied
-environment configuration is still respected.
+重建的包在打包边界禁用上游更新器，并默认关闭上游 Sentry 与遥测上报。显式提供的环境配置仍会被尊重。
 
-## Windows x64 local portable build
+## Windows x64 本地便携构建
 
-The Windows path intentionally produces a directory, not an installer. It
-checksum-verifies the preserved Setup executable, extracts it with the pinned
-`7zip-bin@5.2.0` binary without executing NSIS, validates the upstream
-`app.asar`, Electron carrier, signer, and every unpacked native module as PE
-x86-64, then replaces the application payload with the clean-source
-reconstruction.
+Windows 路径有意产出目录而非安装程序。它校验保留的 Setup 可执行文件的校验和、用固定的 `7zip-bin@5.2.0` 二进制解压它（不执行 NSIS）、把上游 `app.asar`、Electron carrier、签名器以及每个解包的原生模块都作为 PE x86-64 校验，然后用干净源码重建的应用负载替换它。
 
-Run the following in PowerShell or a Developer Command Prompt:
+在 PowerShell 或 Developer Command Prompt 中运行以下命令：
 
 ```powershell
 git lfs install
@@ -402,135 +250,55 @@ npm run verify:windows
 npm run smoke:windows
 ```
 
-The output is:
+产物为：
 
 ```text
 dist/Grok Bot 0.18 Reconstructed-win32-x64/
   Grok Bot 0.18 Reconstructed.exe
 ```
 
-`package:win` and `package-windows` are aliases for `package:windows`.
-On Windows, `smoke:windows` launches the packaged executable with a new
-temporary profile and a strict fake-Docker/control-plane harness. It saves an
-OS-encrypted 9Router credential, authenticates `/v1/models`, enforces the model
-and Docker blockers, waits for authenticated coordinator resync before entering
-the signed-out workspace, closes cleanly with lease revocation, and repeats the
-flow after relaunch. The normal repository check performs the same bounded
-launch on `windows-latest` and discards the binary.
+`package:win` 与 `package-windows` 是 `package:windows` 的别名。
+在 Windows 上，`smoke:windows` 会用新的临时 profile 和严格的假 Docker/控制面 harness 启动打包好的可执行文件。它会保存一个系统加密的 9Router 凭据、认证 `/v1/models`、强制执行模型与 Docker 拦阻逻辑、在进入未登录工作区前等待带认证的协调器 resync、以租约撤销干净退出，并在重启后重复该流程。常规仓库 check 会在 `windows-latest` 上执行同样的有界启动并丢弃该二进制。
 
-Repository maintainers can run **Windows push-access-visible draft release**
-after explicitly enabling Actions on a new fork. That workflow repeats the source, package, and
-fresh-profile launch checks, creates a ZIP, re-extracts it into a clean temporary
-directory, repeats verification and launch smoke, produces checksums and an
-artifact-attributed production-dependency SBOM, and attaches the exact files to an unpublished Draft Release. It never
-publishes a public release automatically. The draft remains subject to the
-rights and signing review described below. GitHub exposes an unpublished draft
-only to users with push access; it is not intrinsically immutable. This workflow
-enforces an append-only exact-resume policy: an exact same-commit draft rerun may
-byte-check existing assets and add only missing ones, but it never replaces an
-asset or reuses a mismatched tag. Any
-new binary requires a package-version bump, and changes to packaged application
-or validation inputs on `main` trigger a new draft attempt. The validated files
-are uploaded directly from the Windows job and are never exposed through a
-general Actions artifact handoff. A rerun aborts if any bytes already in the
-push-access-visible draft differ from the newly validated bundle. The ZIP,
-CycloneDX SBOM, manifest, and checksum are built twice and must be byte-for-byte
-identical. The ZIP timestamp and manifest source time derive from the exact Git
-commit. The SBOM omits per-generation serial and timestamp fields instead of
-misrepresenting source identity. It records the portable ZIP SHA-256, production
-npm dependencies, and packaged Electron framework, but not every native or
-recovered upstream byte.
-Every existing draft asset is preflighted before any missing asset is appended,
-and no nonempty existing asset is deleted or overwritten. GitHub's empty
-zero-byte upload starter may be retired only after that full preflight succeeds.
+仓库维护者可以在新 fork 上显式启用 Actions 后运行 **Windows 推入可见的 draft release**。该工作流会重复源码、打包与全新 profile 的启动检查，创建 ZIP、将其重新解压到一个干净的临时目录、重复校验与启动 smoke、生成校验和与一份按产物归因的生产依赖 SBOM，并把精确文件附加到一个未发布的 Draft Release。它**从不**自动发布公开 release。该 draft 仍需接受下文所述的权利与签名审查。GitHub 只对有推入权限的用户暴露未发布的 draft；它在本质上并非不可变。该工作流强制实行追加式、精确恢复策略：一个完全同提交的 draft 重跑可以逐字节核对已有资产并只补充缺失项，但它绝不会替换资产或复用不匹配的 tag。任何
+新二进制都要求提升包的版本号，而对 `main` 上打包应用或校验输入的任何改动都会触发一次新的 draft 尝试。校验过的文件由 Windows job 直接上传，绝不经过一般的 Actions 产物握手。当推入可见 draft 中已有的任何字节与新校验的 bundle 不一致时，重跑会中止。ZIP、CycloneDX SBOM、manifest 与校验和会被构建两次，且必须逐字节相同。ZIP 时间戳与 manifest 来源时间源自确切的 Git 提交。SBOM 省略逐代序列号与时间戳字段，而不是歪曲源码身份。它记录便携 ZIP 的 SHA-256、生产 npm 依赖与打包的 Electron 框架，但不会记录每一个原生或恢复出的上游字节。
+在追加任何缺失资产之前，都会对现有每个 draft 资产做预检；任何非空的既有资产都不会被删除或覆盖。GitHub 的空零字节上传占位，只有在完整预检通过后才能退役。
 
-### Windows login-free Local 9Router workspace
+### Windows 免登录 Local 9Router 工作区
 
-This is the reviewed path for using the reconstructed Windows app without a
-Cursor login while retaining local agents and computer tools. Before starting,
-make sure all of the following are true:
+这是在不使用 Cursor 登录的前提下使用重建 Windows 应用、同时保留本地 agent 与电脑工具的经审校路径。开始前，请确保以下全部成立：
 
-- Windows 10/11 x64 is running the reconstructed portable app;
-- Docker Desktop is installed, running, and able to start Linux containers;
-- this Windows PC can reach the 9Router server over Tailscale at the literal IP
-  `100.112.10.8`;
-- the server runs the current stable 9Router release (v0.5.35 when reviewed)
-  and exposes its authenticated `/v1` API on port `20128`;
-- a 9Router proxy/client API key has been issued; and
-- at least one exact model ID is known or is returned by `/v1/models`.
+- Windows 10/11 x64 正在运行重建的便携应用；
+- Docker Desktop 已安装、正在运行，且能启动 Linux 容器；
+- 这台 Windows PC 可以通过 Tailscale 以字面地址 `100.112.10.8` 访问 9Router 服务器；
+- 该服务器运行当前稳定版 9Router（审校时为 v0.5.35），并在端口 `20128` 上暴露其已认证的 `/v1` API；
+- 已签发一个 9Router proxy/client API key；且
+- 至少已知一个精确模型 ID，或 `/v1/models` 能返回该模型。
 
-Configure the workspace as follows:
+按如下方式配置工作区：
 
-1. Start Docker Desktop, confirm Tailscale is connected, and run `tailscale
-   ping 100.112.10.8` from Windows. Do not enable plain HTTP if that check does
-   not reach the intended tailnet peer.
-2. On a fresh profile, select **Configure 9Router** on the sign-in screen. On an
-   existing profile, open **Settings → Router**.
-3. Under **Route agent requests through**, select **OpenAI-compatible /
-   9Router** (`cli-proxy`).
-4. Set **Base URL** to `http://100.112.10.8:20128/v1` and enable **Allow HTTP
-   over Tailscale**. Use the numeric IP exactly; an HTTP MagicDNS hostname is
-   rejected.
-5. Enter the issued proxy/client API key and leave **Chat Completions** selected
-   (or use **Auto**) for the native agent and computer tool loop. Do not select
-   explicit **Responses** for the Local Docker workspace.
-6. If the exact model ID is known, enter it and select **Save 9Router**. If it
-   is not known, leave the model blank, save the URL and key, select **Test &
-   load models**, choose a returned model, and select **Save 9Router** again. A
-   manual model value remains valid when the models response omits it.
-7. Enable **Use local Docker VM**. The workspace becomes available when the
-   provider is `cli-proxy`, a credential and exact model ID are configured,
-   Chat Completions or Auto is selected, and the local Docker runtime is
-   selected. Before readiness is published, the authenticated Docker host calls
-   `/v1/models` itself, so a URL reachable only from Windows is rejected. If
-   Docker was restarted or the existing container needs an upgrade, choose
-   **Repair Local Docker VM**.
-8. Choose **Save & continue without sign-in**. The settings dialog remains open
-   until the new coordinator connection completes its authenticated resync;
-   any failed requirement is shown in the readiness checklist.
+1. 启动 Docker Desktop，确认 Tailscale 已连接，并从 Windows 运行 `tailscale ping 100.112.10.8`。若该检查无法到达目标 tailnet 对端，就不要启用明文 HTTP。
+2. 在新 profile 上，于登录界面选择 **Configure 9Router**。在已有 profile 上，打开 **Settings → Router**。
+3. 在 **Route agent requests through** 下，选择 **OpenAI-compatible / 9Router**（`cli-proxy`）。
+4. 把 **Base URL** 设为 `http://100.112.10.8:20128/v1`，并启用 **Allow HTTP over Tailscale**。请精确使用数字 IP；HTTP MagicDNS 主机名会被拒绝。
+5. 输入签发的 proxy/client API key，并为原生 agent 与电脑工具循环保留 **Chat Completions**（或使用 **Auto**）。不要为 Local Docker 工作区选择显式 **Responses**。
+6. 若已知精确模型 ID，输入它并选择 **Save 9Router**。若不确定，把模型留空、先保存 URL 与 key、选择 **Test & load models**、选一个返回的模型，再选择 **Save 9Router**。当 models 响应省略该模型时，手动模型值仍然有效。
+7. 启用 **Use local Docker VM**。当提供方为 `cli-proxy`、已配置凭据与精确模型 ID、已选择 Chat Completions 或 Auto，且已选择本地 Docker 运行时，工作区才会变为可用。在宣布就绪之前，带认证的 Docker host 会亲自调用 `/v1/models`，因此仅在 Windows 上可达的 URL 会被拒绝。若 Docker 重启过或现有容器需要升级，请选择 **Repair Local Docker VM**。
+8. 选择 **Save & continue without sign-in**。设置对话框会一直打开，直到新协调器连接完成其带认证的 resync；任何未满足的要求都会显示在就绪清单中。
 
-No Cursor sign-in is needed for this local workspace. 9Router performs model
-inference; the Docker host performs agent orchestration, shell commands, file
-operations, and computer/browser actions. Cursor-backed remote boxes, shared
-rooms, account billing, and other cloud/account-only features do not become
-available merely because this workspace is ready.
+该本地工作区无需 Cursor 登录。9Router 执行模型推理；Docker host 执行 agent 编排、shell 命令、文件操作与电脑/浏览器动作。Cursor 背书的远端箱子、共享房间、账号计费以及其他云端/仅账号功能，不会仅仅因为该工作区就绪而变得可用。
 
-The automated Windows smoke uses simulated Docker commands and an authenticated
-loopback gateway so CI can verify packaging, state transitions, encryption,
-resync, relaunch, and clean shutdown without privileged Docker Desktop. Source
-integration tests separately exercise the real 9Router SSE tool-call contract,
-the production deferred-tool transcript, a Browser screenshot, its structured
-image follow-up, and the final model response. A final check on the destination
-PC is still required for that PC's Docker Desktop, Tailnet route, live 9Router
-model, VNC/browser stack, and native Linux container processes.
+自动化的 Windows smoke 使用模拟的 Docker 命令与一个带认证的 loopback gateway，使 CI 无需特权 Docker Desktop 即可验证打包、状态迁移、加密、resync、重启与干净关闭。源码集成测试则分别演练真实的 9Router SSE tool-call 契约、生产 deferred-tool transcript、一次浏览器截图、其结构化图像后续追问，以及最终的模型响应。在目标 PC 上，仍需对该 PC 的 Docker Desktop、Tailnet 路由、实时 9Router 模型、VNC/浏览器栈，以及原生 Linux 容器进程做最终检查。
 
-A same-PC 9Router bound only to Windows `127.0.0.1` is unsupported by the Local
-Docker workspace because container loopback is not Windows loopback. Use the
-9Router server's literal Tailscale IP on port `20128` with **Allow HTTP over
-Tailscale**, or an allowed HTTPS endpoint that is reachable from Linux
-containers. The proxy/client API key is a credential; on Windows its store is
-protected with a real DACL (current user, SYSTEM, and Administrators), not a
-POSIX `0600` claim. The shared credential helper enforces and re-verifies that
-boundary.
+一个只绑定到 Windows `127.0.0.1` 的同机 9Router 不被 Local Docker 工作区支持，因为容器 loopback 并非 Windows loopback。请使用 9Router 服务器在端口 `20128` 上的字面 Tailscale IP 并启用 **Allow HTTP over Tailscale**，或使用一个从 Linux 容器可达的被允许的 HTTPS 端点。proxy/client API key 是一个凭据；在 Windows 上其存储受真实的 DACL 保护（当前用户、SYSTEM 与 Administrators），而不是 POSIX `0600` 声明。共享凭据 helper 会强制并反复校验该边界。
 
-### Windows trust and identity boundary
+### Windows 信任与身份边界
 
-The portable output is unofficial and unsigned as a reconstructed
-distribution. Renaming the retained upstream Electron executable does not make
-the reconstructed directory an upstream-signed product. No NSIS installer,
-code-signing certificate, updater metadata, or automatic public release is
-provided; complete a separate rights and signing review before redistribution.
+便携产物属于非官方、未签名的重建分发。重命名保留的上游 Electron 可执行文件并不会让重建目录变成上游签名产品。这里不提供 NSIS 安装程序、代码签名证书、更新器元数据或自动发行的公开 release；请在重新分发前完成独立的权利与签名审查。
 
-The Windows build uses a distinct product/package/executable name, defaults to
-`%APPDATA%\Grok Bot 0.18 Reconstructed`, hard-disables the official updater,
-removes updater executables/configuration, and does not register the inherited
-`sand:` callback. That default avoids taking the official app's protocol
-association. Consequently, a fresh isolated profile does not use Cursor's
-desktop OAuth callback; 9Router/OpenAI-compatible mode is the supported
-Cursor-account-independent first-run path for this portable build. It still
-requires the dedicated 9Router proxy/client API key described above.
+Windows 构建使用独立的 product/package/executable 名称，默认使用 `%APPDATA%\Grok Bot 0.18 Reconstructed`，硬禁用官方更新器、移除更新器可执行文件/配置，且不注册继承的 `sand:` 回调。这个默认值避免占用官方应用的协议关联。因此，全新隔离 profile 不使用 Cursor 的桌面 OAuth 回调；9Router/OpenAI 兼容模式是这个便携构建所支持的、面向免 Cursor 账号首次运行路径。它仍然需要上文描述的那个专用 9Router proxy/client API key。
 
-## Architecture
+## 架构
 
 ```mermaid
 flowchart TD
@@ -541,59 +309,42 @@ flowchart TD
     Host --> Tools["Agents, shell, files, computer"]
 ```
 
-The diagram shows the login-free Windows path. Electron main owns settings and
-the OS-encrypted key store; the coordinator passes a short-lived lease over the
-authenticated local gateway; and the Docker host combines 9Router inference
-with the native local toolset. Account-backed provider and remote-box paths
-remain separate and continue to require their real authentication.
+上图展示免登录的 Windows 路径。Electron main 拥有设置与系统加密的 key 存储；协调器会通过带认证的本地 gateway 传递一个短时租约；Docker host 将 9Router 推理与原生本地工具集结合。仅账号的提供方与远端箱子路径保持独立，并继续要求其真实认证。
 
-The main source areas are:
+主要源码区域如下：
 
-- `source/electron-main/` — desktop lifecycle, settings, auth, box connectors,
-  coordinator ownership, and RPC handlers;
-- `source/electron-preload/` — the narrow trusted bridge exposed to the UI;
-- `source/host/` — inference, tools, MCP, settings, and turn execution;
-- `source/node-agent-coordinator/` — transcript routing, streaming activity,
-  reactions, and the routed MCP bridge;
-- `source/shared/` — shared contracts, settings, protocol, and provider helpers;
-- `frontend/` — readable React/TypeScript renderer reconstruction and design
-  workspace;
-- `scripts/` — bootstrap, compilation, renderer patching, packaging, signing,
-  and verification; and
-- `tests/` — publication and router regressions.
+- `source/electron-main/` —— 桌面生命周期、设置、认证、box 连接器、协调器所有权与 RPC 处理；
+- `source/electron-preload/` —— 暴露给 UI 的窄可信桥接；
+- `source/host/` —— 推理、工具、MCP、设置与回合执行；
+- `source/node-agent-coordinator/` —— transcript 路由、流式活动、reaction 与路由的 MCP 桥；
+- `source/shared/` —— 共享契约、设置、协议与提供方 helper；
+- `frontend/` —— 可读的 React/TypeScript 渲染器重建与设计工作区；
+- `scripts/` —— 引导、编译、渲染器补丁、打包、签名与校验；以及
+- `tests/` —— 发布与路由器回归测试。
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for more detail.
+更多细节见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
-## Development commands
+## 开发命令
 
 ```sh
-npm test                  # focused regression tests
-npm run typecheck         # renderer TypeScript
-npm run source:typecheck  # runtime TypeScript
-npm run frontend:build    # build the readable renderer reconstruction
-npm run package           # build, sign, and verify the macOS app
-npm run verify            # verify an existing packaged app
-npm run smoke             # bounded native smoke check
-npm run package:windows   # local unsigned Windows x64 portable directory
-npm run verify:windows    # structural/hash/native verification of that directory
-npm run smoke:windows     # packaged login-free workspace, relaunch, and clean-quit smoke
-npm run docker:image:verify # verify the pinned public ECR manifest and runtime config
-npm run publication:check # prove a fresh-history export is lossless
+npm test                  # 聚焦回归测试
+npm run typecheck         # 渲染器 TypeScript
+npm run source:typecheck  # 运行时 TypeScript
+npm run frontend:build    # 构建可读渲染器重建
+npm run package           # 构建、签名并校验 macOS 应用
+npm run verify            # 校验一个已打包的应用
+npm run smoke             # 有界原生 smoke 检查
+npm run package:windows   # 本地未签名 Windows x64 便携目录
+npm run verify:windows    # 对该目录的结构/哈希/原生校验
+npm run smoke:windows     # 打包免登录工作区、重启与干净退出 smoke
+npm run docker:image:verify # 校验固定的公开 ECR manifest 与运行时配置
+npm run publication:check # 证明一份全新历史的导出是无损的
 ```
 
-Generated directories including `.cache`, `.build`, `dist`, `src/app/dist`,
-`recovered`, `recovery`, and local probe roots are ignored.
+生成目录（包括 `.cache`、`.build`、`dist`、`src/app/dist`、`recovered`、`recovery` 以及本地探针根目录）均被忽略。
 
-## Project status
+## 项目状态
 
-The app launches and the core reconstructed flows are usable, including routed
-inference, connected plugins, and the local Docker sandbox. This is still an
-experimental reconstruction: it targets the pinned 0.18.0 macOS/arm64 and
-Windows/x64 carriers, depends on external provider sessions or a configured
-OpenAI-compatible endpoint, and does not promise compatibility with future
-Grok Bot versions.
+应用可启动，核心重建流程可用，包括路由推理、已连接插件与本地 Docker 沙箱。这仍是实验性重建：它针对固定 0.18.0 macOS/arm64 与 Windows/x64 carrier，依赖外部提供方会话或一个配置好的 OpenAI 兼容端点，并且不承诺与未来 Grok Bot 版本兼容。
 
-For changes, read [CONTRIBUTING.md](CONTRIBUTING.md). For the clean-history
-export procedure, see [docs/PUBLISHING.md](docs/PUBLISHING.md). Technical
-provenance and retained upstream boundaries are described in
-[PROVENANCE.md](PROVENANCE.md) and [NOTICE.md](NOTICE.md).
+变更须知见 [CONTRIBUTING.md](CONTRIBUTING.md)。干净历史导出流程见 [docs/PUBLISHING.md](docs/PUBLISHING.md)。技术溯源与保留的上游边界见 [PROVENANCE.md](PROVENANCE.md) 与 [NOTICE.md](NOTICE.md)。
