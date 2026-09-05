@@ -74,34 +74,21 @@ sha256sum Grok_Bot_0.18.0_Setup.exe
 # 464079a15ef5fa8b61ccea8fffcc78f63cfcf6df65fb0ad5e725d8b95f7e437e
 ```
 
-### 获取 vendored Node（离线工具链运行时）
+### vendored Node（已内置，无需下载）
 
-vendored Node 是离线构建的运行环境，存放于 `offline/vendor/node/win32-x64/`。同样作为 Release 资产分发，避免在准备机额外下载：
+离线构建用到的 Node 运行时已内置本仓库：`offline/vendor/node/win32-x64/`（官方 `node-v26.5.0-win-x64` 全量内容），随项目/拷贝分发，`online-fetch.cmd` 与 `offline-build.cmd` 直接使用，无需任何下载。
 
-```txt
-https://github.com/GeniusTDY/grok-bot-offline/releases/download/v0.18.0-offline/vendored-node-win32-x64.zip
-```
-
-```sh
-sha256sum vendored-node-win32-x64.zip
-# d3b2277dbcccfdf24ef6302928f64f484cff1d77a6d3caa3a28f4d20ce9158f6
-```
-
-下载后解压 zip，把内层 `node-v26.5.0-win-x64/` 的**全部内容**放入：
-
-`offline/vendor/node/win32-x64/`
-
-确保 `offline\vendor\node\win32-x64\node.exe` 与 `offline\vendor\node\win32-x64\node_modules\npm\bin\npm-cli.js` 均存在。
+如需重建或升级，可在联网机器运行 `scripts/offline/bootstrap-windows.ps1` 重新生成该目录。
 
 ---
 
 ## 离线 / 完全断网构建
 
-端到端一键部署，共三步，仅 Setup.exe/vendored Node 下载与第 2 步需要联网：
+端到端一键部署，共三步，仅 Setup.exe 下载与第 2 步需要联网：
 
 | 步骤 | 位置 | 操作 |
 | --- | --- | --- |
-| ① 备好离线工具链 | 任意联网机器 | 下载并放置 Setup.exe（上节）与 vendored Node（本节） |
+| ① 放置 Setup.exe | 任意联网机器 | 从 Release 下载（上节），手动放到构建路径 |
 | ② 生成离线快照 | 联网 Windows x64 | 运行 `online-fetch.cmd` |
 | ③ 一键构建 | 离线机器 | 拷贝仓库后运行 `offline-build.cmd` |
 
