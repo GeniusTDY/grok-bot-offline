@@ -107,24 +107,6 @@ sha256sum Grok_Bot_0.18.0_Setup.exe
 # 464079a15ef5fa8b61ccea8fffcc78f63cfcf6df65fb0ad5e725d8b95f7e437e
 ```
 
-You may place it however you like — download it and move/copy it into the folder
-by hand, or run the one-shot PowerShell command below on a connected Windows prep
-machine (downloads, verifies the checksum, and stages it at the exact path the
-build expects):
-
-```powershell
-$dst = "research-archives\original\0.18.0\windows-x64\Grok_Bot_0.18.0_Setup.exe"
-New-Item -ItemType Directory -Force -Path (Split-Path $dst) | Out-Null
-Invoke-WebRequest `
-  -Uri "https://github.com/GeniusTDY/grok-bot-offline/releases/download/v0.18.0-offline/Grok_Bot_0.18.0_Setup.exe" `
-  -OutFile $dst -UseBasicParsing
-if ((Get-FileHash $dst -Algorithm SHA256).Hash.ToLowerInvariant() -ne
-    '464079a15ef5fa8b61ccea8fffcc78f63cfcf6df65fb0ad5e725d8b95f7e437e') {
-  throw "Setup.exe sha256 mismatch"
-}
-Write-Host "Setup.exe staged: $dst"
-```
-
 > Because the Setup.exe is a Release asset (not git-tracked), do **not** run
 > `git lfs pull` expecting it. On an air-gapped target, download once on a
 > networked machine and carry it over to the path above.
@@ -253,9 +235,8 @@ the network:
 
 1. **Stage the Setup.exe** (once, on any connected machine). Download the Release
    asset and place/copy it at
-   `research-archives/original/0.18.0/windows-x64/Grok_Bot_0.18.0_Setup.exe` — by
-   hand, or with the one-shot PowerShell command in "Obtaining the Windows
-   Setup.exe" above.
+   `research-archives/original/0.18.0/windows-x64/Grok_Bot_0.18.0_Setup.exe` (see
+   "Obtaining the Windows Setup.exe" above).
 2. **Produce the offline snapshots** (once, on a connected Windows x64 machine):
    `online-fetch.cmd`. This is the only step that talks to the npm registry; it
    writes `offline/cache/node_modules-snapshot.tar.gz` and
