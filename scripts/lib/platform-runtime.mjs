@@ -12,7 +12,7 @@ function relativePath(value, label) {
 export function assertRuntimePlatformSpec(value, expectedId) {
   if (value == null || typeof value !== "object" || Array.isArray(value)) throw new Error("Runtime platform descriptor must be an object");
   const id = `${value.platform}-${value.architecture}`;
-  if (id !== expectedId || !["darwin-arm64", "win32-x64"].includes(id)) throw new Error(`Unsupported runtime platform descriptor: ${id}`);
+  if (id !== expectedId || id !== "win32-x64") throw new Error(`Unsupported runtime platform descriptor: ${id}`);
   if (!/^[0-9a-f]{64}$/.test(value.archiveSha256) || !/^[0-9a-f]{64}$/.test(value.appAsarSha256)) throw new Error("Invalid runtime SHA-256 pin");
   if (!Number.isSafeInteger(value.archiveBytes) || value.archiveBytes <= 0) throw new Error("Invalid runtime archive byte count");
   for (const field of ["archivePath", "executable", "resources", "appAsar", "appAsarUnpacked"]) relativePath(value[field], field);
@@ -23,7 +23,7 @@ export async function loadRuntimePlatformsManifest(file = runtimePlatformsManife
   const manifest = JSON.parse(await readFile(file, "utf8"));
   if (manifest?.schemaVersion !== 1 || manifest.product !== "Grok Bot" || manifest.upstreamVersion !== "0.18.0") throw new Error("Unsupported runtime platforms manifest");
   const entries = Object.fromEntries(Object.entries(manifest.platforms ?? {}).map(([id, value]) => [id, assertRuntimePlatformSpec(value, id)]));
-  if (Object.keys(entries).sort().join(",") !== "darwin-arm64,win32-x64") throw new Error("Runtime manifest must pin exactly macOS arm64 and Windows x64");
+  if (Object.keys(entries).sort().join(",") !== "win32-x64") throw new Error("Runtime manifest must pin exactly Windows x64");
   return Object.freeze({ ...manifest, platforms: Object.freeze(entries) });
 }
 

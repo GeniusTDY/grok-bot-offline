@@ -1,8 +1,8 @@
 # Grok Bot 0.18 — 重建与扩展版
 
-**非官方源码重建 · macOS arm64 + Windows x64 便携版 · Windows 免登录本地工作区**
+**非官方源码重建 · Windows x64 便携版 · 免登录本地工作区**
 
-对公开发布的 Grok Bot 0.18.0 桌面应用的非官方、面向源码重建。支持 macOS arm64 与未签名的 Windows x64 便携目录。
+对公开发布的 Grok Bot 0.18.0 桌面应用的非官方、面向源码重建。仅针对未签名的 Windows x64 便携目录。
 
 Windows 便携版提供**免登录 Local 9Router 工作区**：9Router 提供模型推理，本地 Docker 虚拟机提供 agent / shell / 文件 / 电脑能力，不创建或模拟 Cursor 会话。
 
@@ -16,10 +16,9 @@ Windows 便携版提供**免登录 Local 9Router 工作区**：9Router 提供模
 2. [环境要求](#环境要求)
 3. [保留的原始安装程序](#保留的原始安装程序)
 4. [离线 / 完全断网构建](#离线--完全断网构建)
-5. [macOS 快速构建](#macos-快速构建)
-6. [Windows x64 便携构建](#windows-x64-便携构建)
-7. [架构](#架构)
-8. [项目状态](#项目状态)
+5. [Windows x64 便携构建](#windows-x64-便携构建)
+6. [架构](#架构)
+7. [项目状态](#项目状态)
 
 ---
 
@@ -48,7 +47,6 @@ Windows 便携版提供**免登录 Local 9Router 工作区**：9Router 提供模
 ## 环境要求
 
 - Node.js 26.5.x + Git LFS
-- macOS 打包：Apple Silicon + Xcode CLT
 - Windows 打包：Windows 10/11 x64；Docker Desktop（仅本地 Docker 工作区需要）
 
 ---
@@ -57,10 +55,9 @@ Windows 便携版提供**免登录 Local 9Router 工作区**：9Router 提供模
 
 存放于 `research-archives/original/0.18.0/`。
 
-| 平台 | 文件 | SHA-256 |
-| --- | --- | --- |
-| macOS arm64 | `macos-arm64/Grok_Bot_0.18.0.dmg` | `a253ccd8aab01e083f9812a0264354c5034d8ba7f0610bbb557e82ae77d203eb` |
-| Windows x64 | `windows-x64/Grok_Bot_0.18.0_Setup.exe` | `464079a15ef5fa8b61ccea8fffcc78f63cfcf6df65fb0ad5e725d8b95f7e437e` |
+| 文件 | SHA-256 |
+| --- | --- |
+| `windows-x64/Grok_Bot_0.18.0_Setup.exe` | `464079a15ef5fa8b61ccea8fffcc78f63cfcf6df65fb0ad5e725d8b95f7e437e` |
 
 ### 获取 Windows Setup.exe
 
@@ -94,17 +91,6 @@ sha256sum Grok_Bot_0.18.0_Setup.exe
 - ② 产出 `offline/cache/node_modules-snapshot.tar.gz` 与 `tree-sitter-node-cache.tar.gz`（唯一联网步）。
 - ③ 产物为 `dist/Grok Bot 0.18 Reconstructed-win32-x64/`，完全离线自包含。
 - 若快照已随仓库分发，可跳过 ②；快照缺失时 `offline-build.cmd` 会自动 `restore`。
-
----
-
-## macOS 快速构建
-
-```sh
-git clone <repo-url> && cd grok-bot-0.18-reconstructed
-git lfs install && git lfs pull
-npm ci && npm run bootstrap && npm run check && npm run package
-open "dist/Grok Bot 0.18 Reconstructed.app"
-```
 
 ---
 

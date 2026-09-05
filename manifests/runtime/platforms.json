@@ -3,20 +3,6 @@
   "product": "Grok Bot",
   "upstreamVersion": "0.18.0",
   "platforms": {
-    "darwin-arm64": {
-      "platform": "darwin",
-      "architecture": "arm64",
-      "carrier": "dmg",
-      "archivePath": "research-archives/original/0.18.0/macos-arm64/Grok_Bot_0.18.0.dmg",
-      "archiveBytes": 155793020,
-      "archiveSha256": "a253ccd8aab01e083f9812a0264354c5034d8ba7f0610bbb557e82ae77d203eb",
-      "executable": "Contents/MacOS/Grok Bot",
-      "resources": "Contents/Resources",
-      "appAsar": "Contents/Resources/app.asar",
-      "appAsarUnpacked": "Contents/Resources/app.asar.unpacked",
-      "appAsarSha256": "6665408168466f9cacc6087e917890c17f59d2e2e9c2404a5c4a59ad79c1de58",
-      "extraction": "hdiutil-readonly"
-    },
     "win32-x64": {
       "platform": "win32",
       "architecture": "x64",

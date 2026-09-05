@@ -83,22 +83,3 @@ jobs:
           if-no-files-found: ignore
           include-hidden-files: false
           retention-days: 7
-
-  full-original-provenance:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          lfs: false
-          persist-credentials: false
-      - name: Hydrate both original carriers for the scheduled provenance audit
-        run: git lfs pull --include="research-archives/original/0.18.0/macos-arm64/Grok_Bot_0.18.0.dmg,research-archives/original/0.18.0/windows-x64/Grok_Bot_0.18.0_Setup.exe" --exclude=""
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
-        with:
-          node-version: 26.5.0
-      - name: Verify the immutable local Docker image provenance
-        run: npm run docker:image:verify
-      - name: Hash both original artifacts against the immutable inventory
-        run: node --test tests/research-archives.test.mjs

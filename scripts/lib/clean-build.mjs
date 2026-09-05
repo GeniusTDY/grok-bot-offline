@@ -14,11 +14,11 @@ import {
   buildDir,
   builtAsar,
   builtAsarUnpacked,
+  officialMacReleaseAsarHash,
   repoRoot,
   stagedAppDir,
 } from "./config.mjs";
 import { packStagedAppWithIntegrity, verifyStagedPackageIntegrity } from "./asar-integrity.mjs";
-import { officialMacReleaseAsarHash } from "./macos-shell-invariant.mjs";
 import { stageNodeTreeSitterRuntime } from "../build-tree-sitter-node.mjs";
 import { run } from "./process.mjs";
 
