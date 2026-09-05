@@ -39,3 +39,8 @@ node_modules/
 # macOS carrier is out of scope for the Windows air-gapped build and only a
 # dangling LFS pointer is present locally (no macOS deployment is shipped):
 /research-archives/original/*/macos-arm64/
+
+# Official Windows Setup.exe is distributed as a GitHub Release asset instead
+# of being tracked in git. Download it to offline-build targets and drop it at
+# the path below (see README "Offline build" section):
+/research-archives/original/0.18.0/windows-x64/Grok_Bot_0.18.0_Setup.exe
