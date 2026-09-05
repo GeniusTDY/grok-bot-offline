@@ -1,33 +1,57 @@
-# Grok Bot 0.18 —— 重建与扩展版
+# Grok Bot 0.18 — 重建与扩展版
+
+**非官方源码重建 · macOS arm64 + Windows x64 便携版 · Windows 免登录本地工作区**
 
 对公开发布的 Grok Bot 0.18.0 桌面应用的非官方、面向源码重建。支持 macOS arm64 与未签名的 Windows x64 便携目录。
 
-Windows 便携版提供**免登录 Local 9Router 工作区**：9Router 提供模型推理，本地 Docker 虚拟机提供 agent/shell/文件/电脑能力，不创建或模拟 Cursor 会话。
+Windows 便携版提供**免登录 Local 9Router 工作区**：9Router 提供模型推理，本地 Docker 虚拟机提供 agent / shell / 文件 / 电脑能力，不创建或模拟 Cursor 会话。
 
 > 这是研究与破解项目，非 Anysphere 官方代码，也不是官方发行版。仅重建固定 0.18.0 版本。
 
+---
+
+## 目录
+
+1. [主要特性](#主要特性)
+2. [环境要求](#环境要求)
+3. [保留的原始安装程序](#保留的原始安装程序)
+4. [离线 / 完全断网构建](#离线--完全断网构建)
+5. [macOS 快速构建](#macos-快速构建)
+6. [Windows x64 便携构建](#windows-x64-便携构建)
+7. [架构](#架构)
+8. [项目状态](#项目状态)
+
+---
+
 ## 主要特性
 
-- **推理路由器**：`Settings → Router` 切换后端
-  - Cursor（默认）、Claude Code、Codex：复用各自本地登录
-  - OpenRouter：API key
-  - OpenAI 兼容 / 9Router（内部 ID `cli-proxy`）:专用加密 key
-- **本地 Docker 沙箱**：用自有本地容器替代远端箱子（`Use local Docker VM`）
-- 免登录本地工作区、路由推理用量统计、重建设置界面
+**推理路由器** — `Settings → Router`
+
+| 提供方 | 认证 |
+| --- | --- |
+| Cursor（默认）、Claude Code、Codex | 复用本地登录 |
+| OpenRouter | API key |
+| OpenAI 兼容 / 9Router（ID `cli-proxy`） | 专用加密 key |
+
+其他：本地 Docker 沙箱（`Use local Docker VM`）、免登录本地工作区、路由推理用量统计、重建设置界面。
 
 ### 9Router / OpenAI 兼容设置
 
-1. 在登录界面选 **Configure 9Router**（或 `Settings → Router`）。
+1. 登录界面选 **Configure 9Router**（或 `Settings → Router`）。
 2. 提供方选 **OpenAI-compatible / 9Router**。
 3. 填 Base URL（如 `http://100.112.10.8:20128/v1`）、proxy/client API key、模型 ID，保存。
-4. 连接本地/远端模型端点时只走已认证的 `/v1`；loopback 外默认拒绝明文 HTTP，Tailscale IP 需单独开关。
-5. 免登录工作区需启用 `Use local Docker VM`，且需 Docker Desktop 运行。
+4. 只走已认证的 `/v1`；loopback 外默认拒绝明文 HTTP，Tailscale IP 需单独开关。
+5. 免登录工作区需启用 `Use local Docker VM`，且 Docker Desktop 运行中。
+
+---
 
 ## 环境要求
 
 - Node.js 26.5.x + Git LFS
 - macOS 打包：Apple Silicon + Xcode CLT
 - Windows 打包：Windows 10/11 x64；Docker Desktop（仅本地 Docker 工作区需要）
+
+---
 
 ## 保留的原始安装程序
 
@@ -44,7 +68,7 @@ Setup.exe 是 GitHub Release 资产（不在 git 中，勿用 `git lfs pull`）�
 
 `research-archives/original/0.18.0/windows-x64/Grok_Bot_0.18.0_Setup.exe`
 
-```
+```txt
 https://github.com/GeniusTDY/grok-bot-offline/releases/download/v0.18.0-offline/Grok_Bot_0.18.0_Setup.exe
 ```
 
@@ -53,15 +77,25 @@ sha256sum Grok_Bot_0.18.0_Setup.exe
 # 464079a15ef5fa8b61ccea8fffcc78f63cfcf6df65fb0ad5e725d8b95f7e437e
 ```
 
-## 离线 / 完全断网构建（端到端一键部署）
+---
 
-共三步，仅 Setup.exe 下载和第 2 步需要联网：
+## 离线 / 完全断网构建
 
-1. **准备 Setup.exe**：下载并放置到上述路径。
-2. **生成离线快照**（联网 Windows 机器，一次性）：`online-fetch.cmd` → 产出 `offline/cache/node_modules-snapshot.tar.gz` 和 `tree-sitter-node-cache.tar.gz`（唯一联网步）。
-3. **离线机器一键构建**：把整个仓库（含 `offline/`、`research-archives/`）拷到无网、无 Node 的机器，运行 `offline-build.cmd`。产物：`dist/Grok Bot 0.18 Reconstructed-win32-x64/`（完全离线自包含）。
+端到端一键部署，共三步，仅 Setup.exe 下载与第 2 步需要联网：
 
-> 若快照随仓库一起分发，可跳过第 2 步。若快照缺失，`offline-build.cmd` 会先 `restore` 恢复。
+| 步骤 | 位置 | 操作 |
+| --- | --- | --- |
+| ① 准备 Setup.exe | 任意联网机器 | 下载并放置到上述路径 |
+| ② 生成离线快照 | 联网 Windows x64 | 运行 `online-fetch.cmd` |
+| ③ 一键构建 | 离线机器 | 拷贝仓库后运行 `offline-build.cmd` |
+
+其中：
+
+- ② 产出 `offline/cache/node_modules-snapshot.tar.gz` 与 `tree-sitter-node-cache.tar.gz`（唯一联网步）。
+- ③ 产物为 `dist/Grok Bot 0.18 Reconstructed-win32-x64/`，完全离线自包含。
+- 若快照已随仓库分发，可跳过 ②；快照缺失时 `offline-build.cmd` 会自动 `restore`。
+
+---
 
 ## macOS 快速构建
 
@@ -72,9 +106,11 @@ npm ci && npm run bootstrap && npm run check && npm run package
 open "dist/Grok Bot 0.18 Reconstructed.app"
 ```
 
-## Windows x64 便携构建（联网开发机）
+---
 
-校验 Setup 校验和 → 用固定 `7zip-bin` 解包（不执行 NSIS）→ 替换为重建负载 → 输出目录。
+## Windows x64 便携构建
+
+联网开发机。流程：校验 Setup 校验和 → 用固定 `7zip-bin` 解包（不执行 NSIS）→ 替换为重建负载 → 输出目录。
 
 ```powershell
 git lfs install
@@ -91,6 +127,10 @@ npm run smoke:windows
 
 产物：`dist/Grok Bot 0.18 Reconstructed-win32-x64/Grok Bot 0.18 Reconstructed.exe`
 
+> 离线部署请走上方 [离线 / 完全断网构建](#离线--完全断网构建)，开发机（联网）才用本节命令。
+
+---
+
 ## 架构
 
 ```mermaid
@@ -104,25 +144,17 @@ flowchart TD
 
 主要目录：
 
-- `source/electron-main/` 桌面生命周期/设置/认证/协调器
-- `source/electron-preload/` 可信 UI 桥
-- `source/host/` 推理/工具/MCP/回合
-- `source/shared/` 共享契约
-- `frontend/` 可读渲染器重建
-- `scripts/` 引导/编译/打包/签名/校验
-- `tests/` 回归测试
+| 目录 | 职责 |
+| --- | --- |
+| `source/electron-main/` | 桌面生命周期 / 设置 / 认证 / 协调器 |
+| `source/electron-preload/` | 可信 UI 桥 |
+| `source/host/` | 推理 / 工具 / MCP / 回合 |
+| `source/shared/` | 共享契约 |
+| `frontend/` | 可读渲染器重建 |
+| `scripts/` | 引导 / 编译 / 打包 / 签名 / 校验 |
+| `tests/` | 回归测试 |
 
-## 主要命令
-
-```sh
-npm test                  # 回归测试
-npm run typecheck         # 渲染器 TS
-npm run source:typecheck  # 运行时 TS
-npm run package           # 构建/签名/校验 macOS 应用
-npm run package:windows   # Windows x64 便携目录
-npm run verify:windows    # 校验该目录
-npm run smoke:windows     # 打包后启动 smoke
-```
+---
 
 ## 项目状态
 
