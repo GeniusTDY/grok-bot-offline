@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "platform": "win32",
+  "arch": "x64",
+  "nodeVersion": "26.5.0",
+  "nodeExecutable": "node.exe",
+  "shasum": "d3b2277dbcccfdf24ef6302928f64f484cff1d77a6d3caa3a28f4d20ce9158f6",
+  "stagedAt": "2026-09-04T00:00:00.000Z",
+  "source": "https://nodejs.org/dist/v26.5.0/node-v26.5.0-win-x64.zip"
+}
