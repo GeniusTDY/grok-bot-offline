@@ -84,19 +84,26 @@ sha256sum Grok_Bot_0.18.0_Setup.exe
 
 ## 离线 / 完全断网构建
 
-端到端一键部署，共三步，仅 Setup.exe 下载与第 2 步需要联网：
+端到端一键部署，共三步，仅下载 Release 附件需要一次联网，之后完全离线：
 
 | 步骤 | 位置 | 操作 |
 | --- | --- | --- |
-| ① 放置 Setup.exe | 任意联网机器 | 从 Release 下载（上节），手动放到构建路径 |
-| ② 生成离线快照 | 联网 Windows x64 | 运行 `online-fetch.cmd` |
+| ① 放置 Setup.exe | 任意联网机器 | 从 Release 下载（上节），放到 `research-archives/original/0.18.0/windows-x64/` |
+| ② 放置离线快照 | 任意联网机器 | 从 Release 下载两个快照，放到 `offline/cache/` |
 | ③ 一键构建 | 离线机器 | 拷贝仓库后运行 `offline-build.cmd` |
+
+两个快照附件（从 Release 下载）：
+
+```txt
+https://github.com/GeniusTDY/grok-bot-offline/releases/download/v0.18.0-offline/node_modules-snapshot.tar.gz
+https://github.com/GeniusTDY/grok-bot-offline/releases/download/v0.18.0-offline/tree-sitter-node-cache.tar.gz
+```
 
 其中：
 
-- ② 产出 `offline/cache/node_modules-snapshot.tar.gz` 与 `tree-sitter-node-cache.tar.gz`（唯一联网步）。
+- 快照就位后无需运行 `online-fetch.cmd`；`offline-build.cmd` 会自动 `restore` 并构建。
+- 也可在联网构建机运行 `online-fetch.cmd` 重新生成快照，产物输出到同一 `offline/cache/`。
 - ③ 产物为 `dist/Grok Bot 0.18 Reconstructed-win32-x64/`，完全离线自包含。
-- 若快照已随仓库分发，可跳过 ②；快照缺失时 `offline-build.cmd` 会自动 `restore`。
 
 ---
 
