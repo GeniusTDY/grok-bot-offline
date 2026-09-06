@@ -4,7 +4,7 @@
 
 对公开发布的 Grok Bot 0.18.0 桌面应用的非官方、面向源码重建。仅针对未签名的 Windows x64 便携目录。
 
-Windows 便携版提供**免登录 Local 9Router 工作区**：9Router 提供模型推理，本地 Docker 虚拟机提供 agent / shell / 文件 / 电脑能力，不创建或模拟 Cursor 会话。
+Windows 便携版提供**免登录本地代理网关工作区**：代理网关提供模型推理，本地 Docker 虚拟机提供 agent / shell / 文件 / 电脑能力，不创建或模拟 Cursor 会话。
 
 > 这是研究与破解项目，非 Anysphere 官方代码，也不是官方发行版。仅重建固定 0.18.0 版本。
 
@@ -30,14 +30,14 @@ Windows 便携版提供**免登录 Local 9Router 工作区**：9Router 提供模
 | --- | --- |
 | Cursor（默认）、Claude Code、Codex | 复用本地登录 |
 | OpenRouter | API key |
-| OpenAI 兼容 / 9Router（ID `cli-proxy`） | 专用加密 key |
+| OpenAI 兼容 / 代理网关（ID `proxy-gateway`） | 专用加密 key |
 
 其他：本地 Docker 沙箱（`Use local Docker VM`）、免登录本地工作区、路由推理用量统计、重建设置界面。
 
-### 9Router / OpenAI 兼容设置
+### 代理网关 / OpenAI 兼容设置
 
-1. 登录界面选 **Configure 9Router**（或 `Settings → Router`）。
-2. 提供方选 **OpenAI-compatible / 9Router**。
+1. 登录界面选 **配置代理网关**（或 `Settings → Router`）。
+2. 提供方选 **OpenAI 兼容 / 代理网关**。
 3. 填 Base URL（如 `http://100.112.10.8:20128/v1`）、proxy/client API key、模型 ID，保存。
 4. 只走已认证的 `/v1`；loopback 外默认拒绝明文 HTTP，Tailscale IP 需单独开关。
 5. 免登录工作区需启用 `Use local Docker VM`，且 Docker Desktop 运行中。
@@ -130,7 +130,7 @@ flowchart TD
     UI["Renderer"] --> Main["Electron main"]
     Main --> Coordinator["Coordinator"]
     Coordinator --> Host["Local Docker host"]
-    Host --> Router["9Router over Tailscale"]
+    Host --> Router["Proxy Gateway over Tailscale"]
     Host --> Tools["Agents, shell, files, computer"]
 ```
 

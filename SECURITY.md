@@ -17,7 +17,7 @@ cleanup.
 Please report issues privately to the repository owner rather than opening a
 public disclosure against this experimental codebase.
 
-## OpenAI-compatible / 9Router boundary
+## OpenAI-compatible / Proxy Gateway boundary
 
 - Run the current stable 9Router release (v0.5.35 when reviewed), issue a
   dedicated proxy/client API key, and expose only its authenticated `/v1` API.
@@ -36,7 +36,7 @@ public disclosure against this experimental codebase.
   `fd7a:115c:a1e0::/48` ranges. Adjacent carrier-grade NAT addresses, other
   private ranges, public addresses, metadata endpoints, and ambiguous or
   IPv4-mapped literals remain rejected. This opt-in is additionally restricted
-  to the expected 9Router port `20128` and exact `/v1` API root.
+  to the expected Proxy Gateway port `20128` and exact `/v1` API root.
 - MagicDNS and all other DNS names are rejected for HTTP, even when they
   currently resolve to a Tailscale address. This avoids making a DNS result a
   time-of-check/time-of-use authorization decision. A DNS endpoint must use
@@ -56,7 +56,7 @@ public disclosure against this experimental codebase.
   reuses the existing credential. The proxy/client key must be entered again
   before the new origin can be used. This prevents a settings-only origin
   change from forwarding a saved bearer token to another server.
-- Immediately before a native Local 9Router turn, Electron main supplies the
+- Immediately before a native Local Proxy Gateway turn, Electron main supplies the
   normalized configuration through the authenticated local gateway. The local
   Docker host installs it as a memory-only lease with a 30-minute expiry; each
   later prompt obtains a fresh lease. The gateway exposes no credential getter,
@@ -71,8 +71,8 @@ public disclosure against this experimental codebase.
 
 ## Login-free local workspace boundary
 
-The Windows Local 9Router workspace is ready only when the inference provider
-is `cli-proxy`, a 9Router credential and non-empty exact model ID are
+The Windows Local Proxy Gateway workspace is ready only when the inference provider
+is `proxy-gateway`, a Proxy Gateway credential and non-empty exact model ID are
 configured, Chat Completions or Auto is selected, and **Use local Docker VM**
 is selected. Docker Desktop must already be running. The local connector does
 not request a Cursor inference credential for this combination, and the
@@ -88,7 +88,7 @@ following a mutable tag. It publishes the authenticated gateway and VNC ports
 ports `1337`, `1339`, and `8790` are not host-published.
 
 The image supervisor owns the actual stock, Computer-capable execution daemon.
-In standalone 9Router mode a read-only launcher drops its model-facing primary
+In standalone Proxy Gateway mode a read-only launcher drops its model-facing primary
 process to the existing `box` UID/GID with an empty effective capability set
 and `no_new_privs`; directly spawned window/fork daemons inherit those
 irreversible restrictions. Readiness live-attests the primary listener's
@@ -100,7 +100,7 @@ Host-control credentials are also removed from its inherited and child
 environments. The separately staged reconstructed execution-daemon bundle is
 not treated as the process that owns the stock image's port `1337`.
 
-Standalone 9Router also drops `NET_RAW` and mounts neither host `.codex` nor
+Standalone Proxy Gateway also drops `NET_RAW` and mounts neither host `.codex` nor
 `.claude`. Codex and Claude Code modes mount only their matching credential
 directory, and provider-label changes recreate the container. These controls
 do not make Docker a hostile-code boundary: a Windows/Docker administrator can
@@ -113,5 +113,5 @@ Docker Desktop end-to-end run of the pinned image on the target Windows host.
 No-login mode does not authorize Cursor cloud RPCs. Remote boxes, shared rooms,
 account billing, account-backed plugins, and other cloud/account-only features
 remain unavailable without a real Cursor session. This separation is
-intentional and must not be weakened by mapping `local:9router` to a fake
+intentional and must not be weakened by mapping `local:proxy-gateway` to a fake
 Cursor authentication record.

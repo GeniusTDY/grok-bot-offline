@@ -11,7 +11,7 @@ This architecture is an unofficial reconstruction of the pinned Grok Bot
 reconstruction; they do not make it the latest official Grok Bot or reproduce
 features that exist only in later official releases.
 
-## Windows Local 9Router workspace
+## Windows Local Proxy Gateway workspace
 
 The login-free Windows mode separates model inference from tool execution:
 
@@ -20,23 +20,23 @@ flowchart TD
     UI["Renderer workspace"] --> Main["Electron main"]
     Main --> Coordinator["Local coordinator"]
     Coordinator --> Host["Host in local Docker VM"]
-    Host --> Router["9Router /v1 over Tailscale"]
+    Host --> Router["Proxy Gateway /v1 over Tailscale"]
     Host --> Tools["Agents, shell, files, computer"]
 ```
 
-9Router supplies the OpenAI-compatible model stream. The existing native host
+Proxy Gateway supplies the OpenAI-compatible model stream. The existing native host
 inside the owned Docker VM supplies agent orchestration and the shell, file,
 and computer/browser toolset. This preserves the reconstructed desktop's local
 agent workflow: the model can request tools through the inference stream, but
-the Docker host executes their effects locally rather than asking 9Router to
+the Docker host executes their effects locally rather than asking the Proxy Gateway to
 execute them.
 
 The local workspace becomes eligible only when all three existing settings
 surfaces agree:
 
-- inference provider: **OpenAI-compatible / 9Router** (`cli-proxy`);
+- inference provider: **OpenAI-compatible / Proxy Gateway** (`proxy-gateway`);
 - box runtime: **Use local Docker VM** (`local-docker`); and
-- 9Router status: a proxy/client API key and non-empty exact model ID are
+- Proxy Gateway status: a proxy/client API key and non-empty exact model ID are
   configured with Chat Completions or Auto, not explicit Responses.
 
 Manual model entry keeps the settings surface usable when `/v1/models` is
@@ -45,7 +45,7 @@ an authenticated `/v1/models` request from inside the container; a URL that is
 reachable only from Electron main therefore fails closed.
 
 The renderer represents that state with the internal workspace identity
-`local:9router`. It is a workspace capability, not an authentication record.
+`local:proxy-gateway`. It is a workspace capability, not an authentication record.
 Electron main and the coordinator do not synthesize a `logged-in` Cursor
 status, and the local connector does not request a Cursor inference credential
 for this provider/runtime combination. Account-authorized RPCs therefore stay
@@ -53,14 +53,14 @@ closed.
 
 The standalone container is created without host `.codex`/`.claude` mounts or
 a Cursor inference-credential mount and with `NET_RAW` dropped. Switching
-between standalone 9Router and credential-bearing local provider modes changes
+between standalone Proxy Gateway and credential-bearing local provider modes changes
 the container labels and forces a recreation, so a stale mount is not carried
 across the boundary. Its reviewed linux/amd64 base image is selected by an
 immutable manifest digest; updating the former `sand-box-latest` source is an
 explicit code, test, and review change rather than an implicit runtime pull.
 
 The pinned image's supervisor remains responsible for the actual stock native
-daemon that provides Computer support. For standalone 9Router, a read-only
+daemon that provides Computer support. For standalone Proxy Gateway, a read-only
 replacement for its launcher runs the model-facing primary daemon as the
 image's `box` user with `CapEff=0` and `NoNewPrivs=1`; window/fork daemons are
 directly spawned beneath that process and inherit the same restrictions. The
@@ -91,7 +91,7 @@ the target server described by this branch, the API root is:
 http://100.112.10.8:20128/v1
 ```
 
-The user selects a model exposed by 9Router, saves the issued proxy/client API
+The user selects a model exposed by Proxy Gateway, saves the issued proxy/client API
 key, enables **Allow HTTP over Tailscale**, and selects the local Docker VM.
 The server must run the current stable 9Router release (v0.5.35 when reviewed).
 
@@ -139,7 +139,7 @@ credentials, query strings, fragments, endpoint-specific paths, and the
 
 ### Available and unavailable capabilities
 
-The Local 9Router workspace provides local agents, shell command execution,
+The Local Proxy Gateway workspace provides local agents, shell command execution,
 workspace file operations, and computer/browser control through Docker. It
 does not unlock Cursor remote boxes, shared rooms, account billing,
 account-backed plugins, or other cloud/account-only services. Those features
@@ -166,7 +166,7 @@ Verification re-hashes clean-build outputs and checks renderer provenance.
 The Windows service boundary uses a separate user-data/data root, disables
 upstream update, telemetry, and protocol registration before Electron main
 starts, and exposes no reconstructed development controls in production.
-9Router is configured through the normal **Settings → Router** surface. Local
+Proxy Gateway is configured through the normal **Settings → Router** surface. Local
 Docker does not share Windows loopback: container loopback is not Windows
 loopback, so a same-PC service bound only to `127.0.0.1` is not reachable. The
 documented Tailscale server uses `http://100.112.10.8:20128/v1` with its
