@@ -3,6 +3,7 @@ import type {
   DesktopBridge,
   DesktopLocalWorkspaceStatus
 } from "../recovered/contracts/desktop-bridge";
+import { appLanguage } from "../locale/locale";
 
 export const LOCAL_9ROUTER_WORKSPACE_ID = "local:9router";
 export const LOCAL_WORKSPACE_CHANGED_EVENT = "sand-local-workspace-changed";
@@ -155,9 +156,21 @@ function check(id: LocalWorkspaceCheckId, label: string, ready: boolean): LocalW
 }
 
 export function localWorkspaceNextAction(readiness: LocalWorkspaceReadiness): string {
-  if (readiness.kind === "checking") return "Checking your local 9Router workspace…";
-  if (readiness.kind === "ready") return "Local 9Router is ready. Continue without signing in.";
-  return readiness.blockers[0]?.message ?? "Finish the Local 9Router setup to continue without signing in.";
+  const zh = appLanguage === "zh";
+  if (readiness.kind === "checking") {
+    return zh ? "正在检查本地 9Router 工作区…" : "Checking your local 9Router workspace…";
+  }
+  if (readiness.kind === "ready") {
+    return zh ? "本地 9Router 已就绪，可以跳过登录继续使用。" : "Local 9Router is ready. Continue without signing in.";
+  }
+  return readiness.blockers[0]?.message
+    ?? (zh
+      ? "请先完成本地 9Router 设置，再跳过登录继续使用。"
+      : "Finish the Local 9Router setup to continue without signing in.");
+}
+
+export function localWorkspaceRemainingBlockerLabel(count: number): string {
+  return appLanguage === "zh" ? `还有 ${count} 项设置待完成。` : `${count} setup items remain.`;
 }
 
 export function isLocalWorkspaceClaimReady(

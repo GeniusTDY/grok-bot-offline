@@ -1,3 +1,5 @@
+import { appLanguage } from "../locale/locale";
+
 /**
  * Traceability for UI behavior composed by the production renderer.
  *
@@ -161,12 +163,15 @@ export const PRODUCTION_RENDERER_GAPS = {
   broadcast: "The shipped command availability explicitly marks broadcast unavailable because it has no current user path."
 } as const;
 
-export const UI_TEXT = {
+const UI_TEXT_EN = {
   account: "Account",
   about: "About",
   cancel: "Cancel",
   close: "Close",
   continueInBrowser: "Continue in your browser",
+  continueWithoutSigningIn: "Continue without signing in",
+  configureRouter: "Configure 9Router",
+  finishRouterSetup: "Finish 9Router setup",
   copied: "Copied",
   copyVersionInfo: "Copy version info",
   copyright: "Copyright © 2026 SpaceXAI",
@@ -186,5 +191,42 @@ export const UI_TEXT = {
   signOut: "Sign out",
   signOutDescription: "You’ll need to sign in again to use your Cursor account with Grok Bot.",
   signOutTitle: "Sign out?",
-  title: "Grok Bot"
-} as const;
+  title: "Grok Bot",
+};
+
+const UI_TEXT_ZH: Record<keyof typeof UI_TEXT_EN, string> = {
+  account: "账户",
+  about: "关于",
+  cancel: "取消",
+  close: "关闭",
+  continueInBrowser: "在浏览器中继续",
+  continueWithoutSigningIn: "在不登录的情况下继续",
+  configureRouter: "配置 9Router",
+  finishRouterSetup: "完成 9Router 设置",
+  copied: "已复制",
+  copyVersionInfo: "复制版本信息",
+  copyright: "版权所有 © 2026 SpaceXAI",
+  feedbackIntroduction: "告诉 Grok Bot 团队发生了什么，或你希望做哪些更改。报告会直接发送给团队。",
+  feedbackPlaceholder: "发生了什么？你期望的结果是什么？",
+  helpCenter: "帮助中心",
+  hiddenBots: "隐藏的机器人",
+  includeConversationId: "包含当前会话 ID",
+  logOut: "退出登录",
+  noChatsYet: "还没有会话",
+  plugins: "插件",
+  reopenLink: "重新打开链接",
+  sendFeedback: "发送反馈",
+  settings: "设置",
+  signIn: "登录",
+  signInTagline: "一支全天候在线的智能代理团队，随时处理你交办的真正工作。",
+  signOut: "退出登录",
+  signOutDescription: "你需要重新登录，才能将你的 Cursor 账户与 Grok Bot 一起使用。",
+  signOutTitle: "确定退出登录？",
+  title: "Grok Bot",
+};
+
+/**
+ * The UI text dictionary. Simplified Chinese is used only when the Electron
+ * system language is Simplified Chinese; all other locales fall back to English.
+ */
+export const UI_TEXT: Record<keyof typeof UI_TEXT_EN, string> = appLanguage === "zh" ? UI_TEXT_ZH : UI_TEXT_EN;

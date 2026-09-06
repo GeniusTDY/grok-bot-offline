@@ -2,9 +2,19 @@ import { ProductionRenderer } from "./production/ProductionRenderer";
 import { acquireProductionRendererRuntime, mountProductionRenderer, requireProductionRendererMount } from "./production/bootstrap";
 import { PRODUCTION_RENDERER_GAPS } from "./production/evidence";
 import { RootShellErrorBoundary } from "./recovered/features/window-chrome/root-shell-state";
+import { HTML_LANG, appLanguage } from "./locale/locale";
+import { startDeepTranslation } from "./locale/deep-translate";
 
 const mount = requireProductionRendererMount(document.getElementById("root"));
 const runtime = acquireProductionRendererRuntime(window);
+
+// Set the document language from the Electron system locale (Simplified Chinese
+// or English). When Chinese, deep translation keeps the whole renderer localized.
+document.documentElement.setAttribute("lang", HTML_LANG[appLanguage]);
+if (appLanguage === "zh") {
+  startDeepTranslation(mount);
+}
+
 mountProductionRenderer(mount, <RootShellErrorBoundary><ProductionRenderer {...runtime} /></RootShellErrorBoundary>);
 
 const reportHealth = async () => {

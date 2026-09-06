@@ -140,6 +140,7 @@ import {
   localWorkspaceActivationStateEqual,
   localWorkspaceConfigurationReady,
   localWorkspaceNextAction,
+  localWorkspaceRemainingBlockerLabel,
   projectWorkspaceSession,
   readLocalWorkspaceReadiness,
   type LocalWorkspaceActivationQueue,
@@ -625,13 +626,13 @@ function SignInLanding({ account, bridge, localWorkspace, onOpenRouterSettings, 
           signInLabel={UI_TEXT.signIn}
         />
         <div aria-live="polite" style={{ alignItems: "center", display: "flex", flexDirection: "column", gap: 8, maxWidth: 420, textAlign: "center" }}>
-          <strong>Continue without signing in</strong>
+          <strong>{UI_TEXT.continueWithoutSigningIn}</strong>
           <small>{localWorkspaceNextAction(localWorkspace)}</small>
           {localWorkspace.kind === "disabled" && localWorkspace.blockers.length > 1
-            ? <small>{localWorkspace.blockers.length} setup items remain.</small>
+            ? <small>{localWorkspaceRemainingBlockerLabel(localWorkspace.blockers.length)}</small>
             : null}
-          <SandButton aria-label="Configure 9Router" onClick={onOpenRouterSettings} size="sm" variant="primary">
-            {localWorkspace.kind === "disabled" ? "Finish 9Router setup" : "Configure 9Router"}
+          <SandButton aria-label={UI_TEXT.configureRouter} onClick={onOpenRouterSettings} size="sm" variant="primary">
+            {localWorkspace.kind === "disabled" ? UI_TEXT.finishRouterSetup : UI_TEXT.configureRouter}
           </SandButton>
         </div>
       </section>
