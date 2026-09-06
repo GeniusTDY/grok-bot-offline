@@ -143,8 +143,8 @@ jobs:
           the packaged framework. It is not a complete inventory of every native or
           recovered upstream byte.
 
-          Use Windows 10/11 x64, Docker Desktop, Tailscale, and the current stable 9Router
-          release (v0.5.35 when reviewed). The reviewed remote API root is
+          Use Windows 10/11 x64, Docker Desktop, Tailscale, and the current stable
+          OpenAI-compatible server release (v0.5.35 when reviewed). The reviewed remote API root is
           http://100.112.10.8:20128/v1; enable the explicit Tailscale HTTP option and use a
           dedicated proxy/client key. Extract the ZIP, run `Grok Bot 0.18 Reconstructed.exe`,
           choose Configure Proxy Gateway, then use Save & continue without sign-in. Windows
