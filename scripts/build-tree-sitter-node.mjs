@@ -2,6 +2,8 @@ import { cp, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 
+import { fileURLToPath } from "node:url";
+
 import { repoRoot } from "./lib/config.mjs";
 import { withWindowsMsvcNodeGypSettings } from "./lib/node-gyp-environment.mjs";
 
@@ -78,6 +80,6 @@ export async function stageNodeTreeSitterRuntime(outputRoot) {
   return destination;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   console.log(JSON.stringify({ node: process.version, modules: process.versions.modules, output: await ensureNodeTreeSitterRuntime() }, null, 2));
 }

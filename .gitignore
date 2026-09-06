@@ -5,6 +5,8 @@ node_modules/
 /.build/
 /dist/
 /src/app/dist/
+/offline/cache/
+/Grok_Bot_0.18.0_Setup.exe
 /recovered/
 /recovery/
 /reports/
