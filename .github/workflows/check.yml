@@ -72,7 +72,7 @@ jobs:
           Set-StrictMode -Version Latest
           npm run package:windows
           npm run verify:windows
-      - name: Verify login-free 9Router workspace and graceful quit
+      - name: Verify login-free Proxy Gateway workspace and graceful quit
         run: npm run smoke:windows
       - name: Preserve redacted Windows smoke diagnostics on failure
         if: failure()

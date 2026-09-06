@@ -124,7 +124,7 @@ jobs:
 
           The workflow verified the pinned installer, ASAR, and Docker image provenance,
           ran all source tests, and built on Windows x64. From a fresh signed-out profile
-          it saved an OS-encrypted 9Router key, authenticated /v1/models, enforced the
+          it saved an OS-encrypted Proxy Gateway key, authenticated /v1/models, enforced the
           model and Docker blockers, completed authenticated coordinator resync, entered
           the local workspace without signing in, revoked the short-lived key lease during
           graceful quit, relaunched the same profile, and repeated the package smoke after
@@ -132,9 +132,9 @@ jobs:
 
           CI uses a strict fake-Docker command contract and authenticated loopback gateway;
           it does not pretend to run the Linux host daemon. Source integration tests cover
-          the production 9Router SSE tool call, deferred Browser screenshot result,
+          the production Proxy Gateway SSE tool call, deferred Browser screenshot result,
           structured image follow-up, and final model response. You must still validate the
-          destination PC's Docker Desktop, Tailscale peer, live 9Router model, and native
+          destination PC's Docker Desktop, Tailscale peer, live Proxy Gateway model, and native
           shell/file/browser/computer processes.
 
           `sbom.cdx.json` is an artifact-attributed production-dependency SBOM generated
@@ -147,7 +147,7 @@ jobs:
           release (v0.5.35 when reviewed). The reviewed remote API root is
           http://100.112.10.8:20128/v1; enable the explicit Tailscale HTTP option and use a
           dedicated proxy/client key. Extract the ZIP, run `Grok Bot 0.18 Reconstructed.exe`,
-          choose Configure 9Router, then use Save & continue without sign-in. Windows
+          choose Configure Proxy Gateway, then use Save & continue without sign-in. Windows
           SmartScreen may warn because the reconstructed
           distribution is not code-signed. Do not publish this draft without completing the
           repository's independent rights, trademark, third-party license, and signing review.
