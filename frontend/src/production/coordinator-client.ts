@@ -229,7 +229,7 @@ export function createCoordinatorClient(portBridge: CoordinatorPortBridge): Prod
         const onTransport: TransportListener = (state) => {
           if (state === "connected") finish();
         };
-        const timeout = globalThis.setTimeout(() => finish(new Error("Timed out waiting for the Local 9Router coordinator to connect.")), timeoutMs);
+        const timeout = globalThis.setTimeout(() => finish(new Error("Timed out waiting for the Local Proxy Gateway coordinator to connect.")), timeoutMs);
         transportListeners.add(onTransport);
         if (transportState === "connected") finish();
       });
@@ -262,7 +262,7 @@ export function createCoordinatorClient(portBridge: CoordinatorPortBridge): Prod
         };
         const onTransport: TransportListener = () => check();
         const timeout = globalThis.setTimeout(
-          () => finish(new Error("Timed out waiting for the replacement Local 9Router coordinator to connect.")),
+          () => finish(new Error("Timed out waiting for the replacement Local Proxy Gateway coordinator to connect.")),
           timeoutMs
         );
         transportListeners.add(onTransport);

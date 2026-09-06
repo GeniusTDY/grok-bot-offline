@@ -4,7 +4,7 @@ import { registerExperimentsIpc } from "../experiments/experiments-ipc.js";
 import { registerSettingsIpc } from "../prefs/settings-ipc.js";
 import { createTrustedSenderGuards, registerSecretsIpc } from "../secrets/secrets-ipc.js";
 import {
-  revokeCliProxyLeaseOrStopOwnedLocalDocker,
+  revokeProxyGatewayLeaseOrStopOwnedLocalDocker,
   stopLocalDockerBox,
 } from "../box/local-docker-host-connector.js";
 import { reportDesktopEdgeFailure } from "../desktop-edge-failures.js";
@@ -48,19 +48,19 @@ export function createProductionSecretsIpcRegistrar(): ProductionIpcRegistrar {
       guards: createTrustedSenderGuards(context.getTrustedContents),
       stores: context.secretsStores,
       pushBoxSecrets: () => context.secretsStores.pushBoxSecrets.push("edit"),
-      beforeCliProxyMutation: async () => {
+      beforeProxyGatewayMutation: async () => {
         const coordinator = context.requireCoordinator();
-        coordinator.beginCliProxyCredentialMutation();
-        await revokeCliProxyLeaseOrStopOwnedLocalDocker(() =>
+        coordinator.beginProxyGatewayCredentialMutation();
+        await revokeProxyGatewayLeaseOrStopOwnedLocalDocker(() =>
           coordinator.pushHostSettingsStrict({
-            clearCliProxyCredentialLease: true,
+            clearProxyGatewayCredentialLease: true,
           }), () => stopLocalDockerBox(context.settings.settingsStore.settingsPath));
       },
-      afterCliProxyMutation: async () => {
+      afterProxyGatewayMutation: async () => {
         const coordinator = context.requireCoordinator() as ReturnType<typeof context.requireCoordinator> & {
           readonly localWorkspace?: { refresh(): Promise<unknown> };
         };
-        coordinator.endCliProxyCredentialMutation();
+        coordinator.endProxyGatewayCredentialMutation();
         if (coordinator.localWorkspace != null) await coordinator.localWorkspace.refresh();
         else coordinator.restartCoordinator();
       },

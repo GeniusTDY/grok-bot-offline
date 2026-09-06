@@ -4,10 +4,10 @@ import {
   parseCoordinatorTranscriptWindowRequest,
 } from "../shared/rpc/coordinator.js";
 import {
-  clearCliProxyCredentialLease,
-  installCliProxyCredentialLease,
-} from "./extensions/inference/cli-proxy-credential-lease.js";
-import { probeCliProxyModelsFromContainer } from "./extensions/inference/cli-proxy-container-probe.js";
+  clearProxyGatewayCredentialLease,
+  installProxyGatewayCredentialLease,
+} from "./extensions/inference/proxy-gateway-credential-lease.js";
+import { probeProxyGatewayModelsFromContainer } from "./extensions/inference/proxy-gateway-container-probe.js";
 
 export const HOST_CAPABILITIES = [
   "orderedReplicasV1",
@@ -186,10 +186,10 @@ export function createHostGatewayApi(
       return method(manager, "getAgentThread")(request.id, request.rootId);
     },
 
-    leaseCliProxyCredential: (args: any) =>
-      installCliProxyCredentialLease(args?.config),
+    leaseProxyGatewayCredential: (args: any) =>
+      installProxyGatewayCredentialLease(args?.config),
 
-    probeCliProxyModels: () => probeCliProxyModelsFromContainer(),
+    probeProxyGatewayModels: () => probeProxyGatewayModelsFromContainer(),
 
     sendPrompt: async (args: any) => {
       const agentId =
@@ -627,10 +627,10 @@ export function createHostGatewayApi(
     getHostSettings: () => method(settings, "getHostSettings")(),
     setHostSettings: (args: any) => {
       if (
-        args?.clearCliProxyCredentialLease === true
-        || (args?.inferenceProvider !== undefined && args.inferenceProvider !== "cli-proxy")
+        args?.clearProxyGatewayCredentialLease === true
+        || (args?.inferenceProvider !== undefined && args.inferenceProvider !== "proxy-gateway")
       ) {
-        clearCliProxyCredentialLease();
+        clearProxyGatewayCredentialLease();
       }
       const result = method(settings, "setHostSettings")(args);
       if (args.localToolPermission !== undefined) {

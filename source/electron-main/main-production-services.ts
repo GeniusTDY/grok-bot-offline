@@ -293,9 +293,9 @@ export interface ProductionCoordinatorService extends ProductionDisposable {
   setWindowFocused(state: { readonly isFocused: boolean }): Promise<unknown>;
   pushHostSettings(update: unknown): Promise<Record<string, any> | null>;
   pushHostSettingsStrict(update: unknown): Promise<Record<string, any>>;
-  beginCliProxyCredentialMutation(): void;
-  endCliProxyCredentialMutation(): void;
-  quiesceCliProxyNativeTurns(): Promise<void>;
+  beginProxyGatewayCredentialMutation(): void;
+  endProxyGatewayCredentialMutation(): void;
+  quiesceProxyGatewayNativeTurns(): Promise<void>;
   readHostSettings(): Promise<unknown>;
   getAccountRuntime?(): unknown;
   restartCoordinator(): Promise<unknown>;
@@ -916,12 +916,12 @@ export function createElectronMainProductionComposition(bindings: ElectronMainPr
         try {
           if (coordinator != null) {
             await withDesktopQuitDeadline(
-              "9Router native-turn quiescence",
-              coordinator.quiesceCliProxyNativeTurns(),
+              "Proxy Gateway native-turn quiescence",
+              coordinator.quiesceProxyGatewayNativeTurns(),
             );
           }
         } catch (error) {
-          bindings.reportFailure("coordinator", "cli-proxy-quit-quiesce", error);
+          bindings.reportFailure("coordinator", "proxy-gateway-quit-quiesce", error);
         }
         desktopMetricsRuntime?.disposeProcessMetricsCollector();
         const numericMetrics = desktopMetricsRuntime?.takeClientNumericMetricsManager();
@@ -950,8 +950,8 @@ export function createElectronMainProductionComposition(bindings: ElectronMainPr
         if (settings != null && coordinator != null) {
           try {
             await withDesktopQuitDeadline(
-              "9Router credential lease revocation",
-              coordinator.pushHostSettingsStrict({ clearCliProxyCredentialLease: true }),
+              "Proxy Gateway credential lease revocation",
+              coordinator.pushHostSettingsStrict({ clearProxyGatewayCredentialLease: true }),
             );
           } catch (error) {
             shutdownFailures.push(error);
@@ -986,12 +986,12 @@ export function createElectronMainProductionComposition(bindings: ElectronMainPr
           if (shutdownFailures.length > 0) {
             bindings.reportFailure(
               "coordinator",
-              "cli-proxy-quit-revoke",
+              "proxy-gateway-quit-revoke",
               shutdownFailures.length === 1
                 ? shutdownFailures[0]
                 : new AggregateError(
                     shutdownFailures,
-                    "Could not clear the 9Router lease and stop the owned local Docker VM during quit.",
+                    "Could not clear the Proxy Gateway lease and stop the owned local Docker VM during quit.",
                   ),
             );
           }

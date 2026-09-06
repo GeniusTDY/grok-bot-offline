@@ -51,15 +51,15 @@ import {
   type CoordinatorRendererPortDeliveryPayload,
 } from "../../shared/rpc/coordinator-port.js";
 import {
-  LOCAL_9ROUTER_WORKSPACE_ID,
-  resolveLocal9RouterWorkspaceClaim,
+  LOCAL_PROXY_GATEWAY_WORKSPACE_ID,
+  resolveLocalProxyGatewayWorkspaceClaim,
   type LocalWorkspaceStatus,
   type ProductionLocalWorkspaceControl,
 } from "./local-workspace.js";
 
 export {
-  LOCAL_9ROUTER_WORKSPACE_ID,
-  resolveLocal9RouterWorkspaceClaim,
+  LOCAL_PROXY_GATEWAY_WORKSPACE_ID,
+  resolveLocalProxyGatewayWorkspaceClaim,
   type LocalWorkspaceStatus,
   type ProductionLocalWorkspaceControl,
 } from "./local-workspace.js";
@@ -178,10 +178,10 @@ export function createCoordinatorReadinessGate(
 }
 
 /** Serializes native-turn lease setup and permanently closes intake on quit. */
-export function createCliProxyNativePrepareGate() {
+export function createProxyGatewayNativePrepareGate() {
   let quiesced = false;
   let tail: Promise<void> = Promise.resolve();
-  const closedError = (): Error => new Error("Native 9Router turn preparation is quiesced.");
+  const closedError = (): Error => new Error("Native Proxy Gateway turn preparation is quiesced.");
   return {
     run<T>(operation: () => Promise<T>): Promise<T> {
       if (quiesced) return Promise.reject(closedError());
@@ -593,11 +593,11 @@ export function createProductionCoordinatorAdapter<
       let disposed = false;
       let observationSequence = 0;
       let localWorkspaceRequested = false;
-      let cliProxyCredentialMutationDepth = 0;
+      let proxyGatewayCredentialMutationDepth = 0;
       let coordinatorLaunchSequence = 0;
       let localWorkspaceStatus: LocalWorkspaceStatus = { kind: "disabled" };
       const coordinatorReadiness = createCoordinatorReadinessGate();
-      const cliProxyNativePrepareGate = createCliProxyNativePrepareGate();
+      const proxyGatewayNativePrepareGate = createProxyGatewayNativePrepareGate();
       let restartCoordinatorTail: Promise<void> = Promise.resolve();
       const localWorkspaceListeners = new Set<(
         status: LocalWorkspaceStatus,
@@ -623,10 +623,10 @@ export function createProductionCoordinatorAdapter<
       ): Promise<CoordinatorRuntimeClaim | null> => {
         let localClaim: CoordinatorRuntimeClaim | null = null;
         try {
-          localClaim = await resolveLocal9RouterWorkspaceClaim({
+          localClaim = await resolveLocalProxyGatewayWorkspaceClaim({
             status,
             settings: context.settings.settingsStore,
-            cliProxyStatus: () => context.secretsStores.cliProxySecretStore.status(),
+            proxyGatewayStatus: () => context.secretsStores.proxyGatewaySecretStore.status(),
           });
         } catch (error) {
           ports.reportFailure("coordinator-local-workspace", "eligibility", error);
@@ -667,54 +667,54 @@ export function createProductionCoordinatorAdapter<
         getRpcTraceWindowTraceparent: ports.telemetry.getRpcTraceWindowTraceparent,
         listRoutedMcpTools: () => context.requireMcp().listRoutedTools(),
         executeRoutedMcpTool: (request) => context.requireMcp().executeRoutedTool(request),
-        getCliProxyTurnConfig: () => context.secretsStores.cliProxySecretStore.getTurnConfig(),
-        prepareCliProxyNativeTurn: () => cliProxyNativePrepareGate.run(() =>
+        getProxyGatewayTurnConfig: () => context.secretsStores.proxyGatewaySecretStore.getTurnConfig(),
+        prepareProxyGatewayNativeTurn: () => proxyGatewayNativePrepareGate.run(() =>
           resync.withSuccessfulResync(async () => {
             const assertEligible = (): void => {
               if (disposed) throw new Error("Coordinator is shutting down.");
-              if (cliProxyCredentialMutationDepth > 0) {
-                throw new Error("9Router credentials are being changed; retry the turn.");
+              if (proxyGatewayCredentialMutationDepth > 0) {
+                throw new Error("Proxy Gateway credentials are being changed; retry the turn.");
               }
               if (
-                context.settings.settingsStore.getInferenceProvider() !== "cli-proxy"
+                context.settings.settingsStore.getInferenceProvider() !== "proxy-gateway"
                 || context.settings.settingsStore.getBoxRuntime() !== "local-docker"
               ) {
-                throw new Error("Native 9Router routing is no longer selected.");
+                throw new Error("Native Proxy Gateway routing is no longer selected.");
               }
             };
             assertEligible();
-            const config = await context.secretsStores.cliProxySecretStore.getTurnConfig();
+            const config = await context.secretsStores.proxyGatewaySecretStore.getTurnConfig();
             assertEligible();
-            const leaseCliProxyCredential = context.coordinatorLegs.legs.leaseCliProxyCredential;
-            requiredFunction(leaseCliProxyCredential, "coordinator leaseCliProxyCredential()");
-            return await leaseCliProxyCredential({ config });
+            const leaseProxyGatewayCredential = context.coordinatorLegs.legs.leaseProxyGatewayCredential;
+            requiredFunction(leaseProxyGatewayCredential, "coordinator leaseProxyGatewayCredential()");
+            return await leaseProxyGatewayCredential({ config });
           })),
         native: ports.localExecNative,
       });
       const probeLocalWorkspaceModels = async (): Promise<void> => {
         const assertEligible = (): void => {
           if (disposed) throw new Error("Coordinator is shutting down.");
-          if (cliProxyCredentialMutationDepth > 0) {
-            throw new Error("9Router credentials are being changed; retry the workspace connection.");
+          if (proxyGatewayCredentialMutationDepth > 0) {
+            throw new Error("Proxy Gateway credentials are being changed; retry the workspace connection.");
           }
           if (
             !localWorkspaceRequested
-            || context.settings.settingsStore.getInferenceProvider() !== "cli-proxy"
+            || context.settings.settingsStore.getInferenceProvider() !== "proxy-gateway"
             || context.settings.settingsStore.getBoxRuntime() !== "local-docker"
           ) {
-            throw new Error("Local 9Router workspace is no longer selected.");
+            throw new Error("Local Proxy Gateway workspace is no longer selected.");
           }
         };
         assertEligible();
-        const config = await context.secretsStores.cliProxySecretStore.getTurnConfig();
+        const config = await context.secretsStores.proxyGatewaySecretStore.getTurnConfig();
         assertEligible();
-        const leaseCliProxyCredential = context.coordinatorLegs.legs.leaseCliProxyCredential;
-        requiredFunction(leaseCliProxyCredential, "coordinator leaseCliProxyCredential()");
-        const probeCliProxyModels = context.coordinatorLegs.legs.probeCliProxyModels;
-        requiredFunction(probeCliProxyModels, "coordinator probeCliProxyModels()");
-        await leaseCliProxyCredential({ config });
+        const leaseProxyGatewayCredential = context.coordinatorLegs.legs.leaseProxyGatewayCredential;
+        requiredFunction(leaseProxyGatewayCredential, "coordinator leaseProxyGatewayCredential()");
+        const probeProxyGatewayModels = context.coordinatorLegs.legs.probeProxyGatewayModels;
+        requiredFunction(probeProxyGatewayModels, "coordinator probeProxyGatewayModels()");
+        await leaseProxyGatewayCredential({ config });
         assertEligible();
-        await probeCliProxyModels({});
+        await probeProxyGatewayModels({});
         assertEligible();
       };
       const createRuntime = (claim: CoordinatorRuntimeClaim) => {
@@ -763,7 +763,7 @@ export function createProductionCoordinatorAdapter<
                   coordinatorReadiness.reject(
                     readinessGeneration,
                     connectedLaunchSequence,
-                    new Error("Local 9Router workspace is no longer selected."),
+                    new Error("Local Proxy Gateway workspace is no longer selected."),
                   );
                   return;
                 }
@@ -771,7 +771,7 @@ export function createProductionCoordinatorAdapter<
                 if (!transportEpoch.isCurrent(connectedEpoch)) return;
                 const ready: LocalWorkspaceStatus = {
                   kind: "ready",
-                  workspaceId: LOCAL_9ROUTER_WORKSPACE_ID,
+                  workspaceId: LOCAL_PROXY_GATEWAY_WORKSPACE_ID,
                 };
                 publishLocalWorkspaceStatus(ready);
                 coordinatorReadiness.resolve(
@@ -875,10 +875,10 @@ export function createProductionCoordinatorAdapter<
             restartAfterRefresh
             && status.kind === "logged-out"
             && context.settings.settingsStore.getBoxRuntime() === "local-docker"
-            && context.settings.settingsStore.getInferenceProvider() === "cli-proxy"
+            && context.settings.settingsStore.getInferenceProvider() === "proxy-gateway"
             && claim?.kind !== "local-workspace"
           ) {
-            throw new Error("The configured local 9Router workspace could not be claimed.");
+            throw new Error("The configured local Proxy Gateway workspace could not be claimed.");
           }
           applyRuntimeClaimState(claim);
           accountRuntime.observe(status, claim);
@@ -981,13 +981,13 @@ export function createProductionCoordinatorAdapter<
         }),
         pushHostSettings: (update) => resync.pushHostSettings(update),
         pushHostSettingsStrict: (update) => resync.pushHostSettingsStrict(update),
-        beginCliProxyCredentialMutation() {
-          cliProxyCredentialMutationDepth += 1;
+        beginProxyGatewayCredentialMutation() {
+          proxyGatewayCredentialMutationDepth += 1;
         },
-        endCliProxyCredentialMutation() {
-          cliProxyCredentialMutationDepth = Math.max(0, cliProxyCredentialMutationDepth - 1);
+        endProxyGatewayCredentialMutation() {
+          proxyGatewayCredentialMutationDepth = Math.max(0, proxyGatewayCredentialMutationDepth - 1);
         },
-        quiesceCliProxyNativeTurns: () => cliProxyNativePrepareGate.quiesce(),
+        quiesceProxyGatewayNativeTurns: () => proxyGatewayNativePrepareGate.quiesce(),
         readHostSettings: async () => {
           const getHostSettings = context.coordinatorLegs.legs.getHostSettings;
           requiredFunction(getHostSettings, "coordinator getHostSettings()");
@@ -1006,7 +1006,7 @@ export function createProductionCoordinatorAdapter<
           // prepare or fallible cleanup. Quit deadlines cannot cancel those
           // Promises, so every phase is started and observed here.
           await quiesceNativeTurnsAndDisposeCoordinatorRuntime(
-            () => cliProxyNativePrepareGate.quiesce(),
+            () => proxyGatewayNativePrepareGate.quiesce(),
             () => accountRuntime.dispose(),
             [
               unsubscribe,

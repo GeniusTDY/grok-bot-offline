@@ -1,19 +1,19 @@
 import {
-  CLI_PROXY_MAX_JSON_BYTES,
-  CLI_PROXY_MAX_STREAM_BYTES,
-  CLI_PROXY_REQUEST_TIMEOUT_MS,
-  cliProxyEndpoint,
-  requireCliProxyModel,
-  type CliProxyProtocol,
-  type CliProxyTurnConfig,
-} from "../../../shared/cli-proxy.js";
+  PROXY_GATEWAY_MAX_JSON_BYTES,
+  PROXY_GATEWAY_MAX_STREAM_BYTES,
+  PROXY_GATEWAY_REQUEST_TIMEOUT_MS,
+  proxyGatewayEndpoint,
+  requireProxyGatewayModel,
+  type ProxyGatewayProtocol,
+  type ProxyGatewayTurnConfig,
+} from "../../../shared/proxy-gateway.js";
 
 type Loose = Record<string, any>;
 export type OpenAiCompatibleUsage = { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number };
 export type OpenAiCompatibleTool = { name: string; description?: string; parameters: unknown; source: Loose };
 export type OpenAiCompatibleEvent =
   | { type: "text-delta"; delta: string }
-  | { type: "done"; text: string; responseId: string; usage: OpenAiCompatibleUsage; protocol: Exclude<CliProxyProtocol, "auto"> };
+  | { type: "done"; text: string; responseId: string; usage: OpenAiCompatibleUsage; protocol: Exclude<ProxyGatewayProtocol, "auto"> };
 export type OpenAiCompatibleModelStepEvent =
   | { type: "text-delta"; textDelta: string }
   | { type: "tool-call"; toolCallId: string; toolName: string; args: unknown }
@@ -30,7 +30,7 @@ export type OpenAiCompatibleModelStepEvent =
 
 export interface OpenAiCompatibleOptions {
   readonly fetch?: typeof fetch;
-  readonly config: CliProxyTurnConfig;
+  readonly config: ProxyGatewayTurnConfig;
   readonly instructions: string;
   readonly messages: readonly { role: string; content: unknown }[];
   readonly tools?: readonly OpenAiCompatibleTool[];
@@ -63,7 +63,7 @@ function requestTools(tools: readonly OpenAiCompatibleTool[] | undefined, protoc
   if (tools == null || tools.length === 0) return undefined;
   const seen = new Set<string>();
   return tools.map(tool => {
-    if (seen.has(tool.name)) throw new Error(`9Router MCP tools contain a duplicate name: ${tool.name}`);
+    if (seen.has(tool.name)) throw new Error(`Proxy Gateway MCP tools contain a duplicate name: ${tool.name}`);
     seen.add(tool.name);
     const fn = { name: tool.name, ...(tool.description == null ? {} : { description: tool.description }), parameters: tool.parameters, strict: false };
     return protocol === "chat-completions" ? { type: "function", function: fn } : { type: "function", ...fn };
@@ -75,33 +75,33 @@ const requestLeases = new WeakMap<Response, RequestLease>();
 
 async function readWithLease(reader: ReadableStreamDefaultReader<Uint8Array>, lease: RequestLease | undefined): Promise<ReadableStreamReadResult<Uint8Array>> {
   if (lease == null) return reader.read();
-  if (lease.controller.signal.aborted) throw new Error("9Router stream aborted.");
+  if (lease.controller.signal.aborted) throw new Error("Proxy Gateway stream aborted.");
   return await new Promise((resolve, reject) => {
-    const onAbort = () => reject(new Error("9Router stream aborted."));
+    const onAbort = () => reject(new Error("Proxy Gateway stream aborted."));
     lease.controller.signal.addEventListener("abort", onAbort, { once: true });
     void reader.read().then(resolve, reject).finally(() => lease.controller.signal.removeEventListener("abort", onAbort));
   });
 }
 
 function cancellationError(options: OpenAiCompatibleOptions): Error | null {
-  return options.signal?.aborted === true ? new Error("9Router request was cancelled.") : null;
+  return options.signal?.aborted === true ? new Error("Proxy Gateway request was cancelled.") : null;
 }
 
 async function boundedRequest(options: OpenAiCompatibleOptions, endpoint: "chat/completions" | "responses", body: unknown): Promise<Response> {
   const serialized = JSON.stringify(body);
-  if (Buffer.byteLength(serialized) > CLI_PROXY_MAX_JSON_BYTES) throw new Error("9Router request is too large.");
+  if (Buffer.byteLength(serialized) > PROXY_GATEWAY_MAX_JSON_BYTES) throw new Error("Proxy Gateway request is too large.");
   const controller = new AbortController();
   const lease = { timer: undefined as unknown as ReturnType<typeof setTimeout>, controller, timedOut: false, callerAborted: false, cleanup: () => {} };
   const onCallerAbort = () => { lease.callerAborted = true; controller.abort(); };
-  if (options.signal?.aborted === true) throw new Error("9Router request was cancelled.");
+  if (options.signal?.aborted === true) throw new Error("Proxy Gateway request was cancelled.");
   options.signal?.addEventListener("abort", onCallerAbort, { once: true });
-  lease.timer = setTimeout(() => { lease.timedOut = true; controller.abort(); }, options.timeoutMs ?? CLI_PROXY_REQUEST_TIMEOUT_MS);
+  lease.timer = setTimeout(() => { lease.timedOut = true; controller.abort(); }, options.timeoutMs ?? PROXY_GATEWAY_REQUEST_TIMEOUT_MS);
   lease.timer.unref?.();
   lease.cleanup = () => { clearTimeout(lease.timer); options.signal?.removeEventListener("abort", onCallerAbort); };
   try {
-    const response = await (options.fetch ?? fetch)(cliProxyEndpoint(options.config, endpoint), {
+    const response = await (options.fetch ?? fetch)(proxyGatewayEndpoint(options.config, endpoint), {
       method: "POST",
-      headers: { authorization: `Bearer ${options.config.apiKey}`, "content-type": "application/json", accept: "text/event-stream", "user-agent": "grok-bot-9router/1" },
+      headers: { authorization: `Bearer ${options.config.apiKey}`, "content-type": "application/json", accept: "text/event-stream", "user-agent": "grok-bot-proxy-gateway/1" },
       body: serialized,
       redirect: "error",
       signal: controller.signal,
@@ -109,26 +109,26 @@ async function boundedRequest(options: OpenAiCompatibleOptions, endpoint: "chat/
     if (!response.ok) {
       try { await response.body?.cancel(); } catch {}
       lease.cleanup();
-      throw new Error(`9Router ${endpoint === "responses" ? "Responses" : "Chat Completions"} request failed with HTTP ${response.status}.`);
+      throw new Error(`Proxy Gateway ${endpoint === "responses" ? "Responses" : "Chat Completions"} request failed with HTTP ${response.status}.`);
     }
     requestLeases.set(response, lease);
     return response;
   } catch (error) {
     lease.cleanup();
-    if (lease.callerAborted) throw new Error("9Router request was cancelled.");
-    if (lease.timedOut) throw new Error("9Router request timed out.");
-    if (error instanceof Error && error.message.startsWith("9Router ")) throw error;
-    throw new Error("9Router request could not be completed.");
+    if (lease.callerAborted) throw new Error("Proxy Gateway request was cancelled.");
+    if (lease.timedOut) throw new Error("Proxy Gateway request timed out.");
+    if (error instanceof Error && error.message.startsWith("Proxy Gateway ")) throw error;
+    throw new Error("Proxy Gateway request could not be completed.");
   }
 }
 
-const SSE_DONE = Symbol("9router-sse-done");
+const SSE_DONE = Symbol("proxy-gateway-sse-done");
 
 async function* sse(response: Response): AsyncGenerator<Loose | typeof SSE_DONE> {
   const lease = requestLeases.get(response);
   if (response.body == null) {
     lease?.cleanup(); requestLeases.delete(response);
-    throw new Error("9Router response did not include a stream.");
+    throw new Error("Proxy Gateway response did not include a stream.");
   }
   const reader = response.body.getReader(), decoder = new TextDecoder();
   let buffer = "", bytes = 0;
@@ -137,10 +137,10 @@ async function* sse(response: Response): AsyncGenerator<Loose | typeof SSE_DONE>
       const { done, value } = await readWithLease(reader, lease);
       if (value != null) {
         bytes += value.byteLength;
-        if (bytes > CLI_PROXY_MAX_STREAM_BYTES) throw new Error("9Router response exceeded the stream size limit.");
+        if (bytes > PROXY_GATEWAY_MAX_STREAM_BYTES) throw new Error("Proxy Gateway response exceeded the stream size limit.");
       }
       buffer += decoder.decode(value, { stream: !done });
-      if (buffer.length > CLI_PROXY_MAX_JSON_BYTES) throw new Error("9Router sent an oversized SSE event.");
+      if (buffer.length > PROXY_GATEWAY_MAX_JSON_BYTES) throw new Error("Proxy Gateway sent an oversized SSE event.");
       let boundary: number;
       while ((boundary = buffer.search(/\r?\n\r?\n/)) !== -1) {
         const match = /\r?\n\r?\n/.exec(buffer.slice(boundary))!;
@@ -153,16 +153,16 @@ async function* sse(response: Response): AsyncGenerator<Loose | typeof SSE_DONE>
           return;
         }
         let parsed: unknown;
-        try { parsed = JSON.parse(data); } catch { throw new Error("9Router returned malformed streaming JSON."); }
+        try { parsed = JSON.parse(data); } catch { throw new Error("Proxy Gateway returned malformed streaming JSON."); }
         const event = record(parsed); if (event != null) yield event;
       }
       if (done) break;
     }
     if (buffer.trim() === "data: [DONE]") yield SSE_DONE;
-    else if (buffer.trim().length > 0) throw new Error("9Router stream ended with an incomplete event.");
+    else if (buffer.trim().length > 0) throw new Error("Proxy Gateway stream ended with an incomplete event.");
   } catch (error) {
-    if (lease?.callerAborted) throw new Error("9Router request was cancelled.");
-    if (lease?.timedOut) throw new Error("9Router request timed out.");
+    if (lease?.callerAborted) throw new Error("Proxy Gateway request was cancelled.");
+    if (lease?.timedOut) throw new Error("Proxy Gateway request timed out.");
     throw error;
   } finally { lease?.cleanup(); requestLeases.delete(response); try { await reader.cancel(); } catch {} try { reader.releaseLock(); } catch {} }
 }
@@ -309,19 +309,19 @@ function nativeChatMessages(instructions: string, messages: OpenAiCompatibleOpti
 
 function boundedToolOutput(value: unknown): string {
   const output = safeJson(value);
-  return Buffer.byteLength(output) <= CLI_PROXY_MAX_JSON_BYTES ? output : safeJson({ isError: true, error: "Tool result exceeded the size limit." });
+  return Buffer.byteLength(output) <= PROXY_GATEWAY_MAX_JSON_BYTES ? output : safeJson({ isError: true, error: "Tool result exceeded the size limit." });
 }
 
 async function executeCalls(calls: readonly ToolCall[], tools: readonly OpenAiCompatibleTool[] | undefined, executeTool: OpenAiCompatibleOptions["executeTool"], signal?: AbortSignal): Promise<Array<{ call: ToolCall; output: string }>> {
   if (calls.length === 0) return [];
-  if (executeTool == null) throw new Error("9Router requested an MCP tool while tool routing is disabled.");
+  if (executeTool == null) throw new Error("Proxy Gateway requested an MCP tool while tool routing is disabled.");
   const byName = new Map((tools ?? []).map(tool => [tool.name, tool]));
   const callIds = new Set<string>();
   const results = [];
   for (const call of calls) {
-    if (signal?.aborted) throw new Error("9Router request was cancelled.");
-    if (call.id.trim().length === 0 || call.name.trim().length === 0) throw new Error("9Router returned an invalid tool call.");
-    if (callIds.has(call.id)) throw new Error("9Router returned duplicate tool-call identifiers.");
+    if (signal?.aborted) throw new Error("Proxy Gateway request was cancelled.");
+    if (call.id.trim().length === 0 || call.name.trim().length === 0) throw new Error("Proxy Gateway returned an invalid tool call.");
+    if (callIds.has(call.id)) throw new Error("Proxy Gateway returned duplicate tool-call identifiers.");
     callIds.add(call.id);
     const selected = byName.get(call.name);
     if (selected == null) { results.push({ call, output: safeJson({ isError: true, error: "Unknown Grok Bot tool." }) }); continue; }
@@ -330,13 +330,13 @@ async function executeCalls(calls: readonly ToolCall[], tools: readonly OpenAiCo
     catch { results.push({ call, output: safeJson({ isError: true, error: "Tool arguments were not valid JSON." }) }); continue; }
     try { results.push({ call, output: boundedToolOutput(await executeTool(selected, args, call.id)) }); }
     catch { results.push({ call, output: safeJson({ isError: true, error: "Tool execution failed." }) }); }
-    if (signal?.aborted) throw new Error("9Router request was cancelled.");
+    if (signal?.aborted) throw new Error("Proxy Gateway request was cancelled.");
   }
   return results;
 }
 
 async function* streamChat(options: OpenAiCompatibleOptions, irreversible: () => void): AsyncGenerator<OpenAiCompatibleEvent> {
-  const model = requireCliProxyModel(options.config.model), maxSteps = options.maxSteps ?? 8;
+  const model = requireProxyGatewayModel(options.config.model), maxSteps = options.maxSteps ?? 8;
   const declaredTools = requestTools(options.tools, "chat-completions");
   let messages: Loose[] = [{ role: "system", content: options.instructions }, ...options.messages.map(message => ({ role: message.role === "assistant" ? "assistant" : "user", content: typeof message.content === "string" ? message.content : safeJson(message.content) }))];
   let text = "", responseId = "", usage = zeroUsage();
@@ -346,7 +346,7 @@ async function* streamChat(options: OpenAiCompatibleOptions, irreversible: () =>
     let stepUsage = zeroUsage(), completed = false;
     for await (const chunk of sse(response)) {
       if (chunk === SSE_DONE) { completed = true; continue; }
-      if (chunk.error != null) throw new Error("9Router Chat Completions request failed.");
+      if (chunk.error != null) throw new Error("Proxy Gateway Chat Completions request failed.");
       if (typeof chunk.id === "string") responseId = chunk.id;
       const observedUsage = chatUsage(chunk.usage);
       if (observedUsage.inputTokens + observedUsage.outputTokens + observedUsage.cacheReadTokens > 0) stepUsage = observedUsage;
@@ -365,7 +365,7 @@ async function* streamChat(options: OpenAiCompatibleOptions, irreversible: () =>
         }
       }
     }
-    if (!completed) throw new Error("9Router Chat Completions stream ended before completion.");
+    if (!completed) throw new Error("Proxy Gateway Chat Completions stream ended before completion.");
     usage = addUsage(usage, stepUsage);
     const completeCalls = [...calls.values()];
     if (completeCalls.length === 0) { yield { type: "done", text, responseId, usage, protocol: "chat-completions" }; return; }
@@ -374,11 +374,11 @@ async function* streamChat(options: OpenAiCompatibleOptions, irreversible: () =>
     const results = await executeCalls(completeCalls, options.tools, options.executeTool, options.signal);
     messages = [...messages, { role: "assistant", content: null, tool_calls: completeCalls.map(call => ({ id: call.id, type: "function", function: { name: call.name, arguments: call.arguments } })) }, ...results.map(({ call, output }) => ({ role: "tool", tool_call_id: call.id, content: output }))];
   }
-  throw new Error(`9Router exceeded Grok Bot's ${maxSteps}-step tool limit.`);
+  throw new Error(`Proxy Gateway exceeded Grok Bot's ${maxSteps}-step tool limit.`);
 }
 
 async function* streamResponses(options: OpenAiCompatibleOptions, irreversible: () => void): AsyncGenerator<OpenAiCompatibleEvent> {
-  const model = requireCliProxyModel(options.config.model), maxSteps = options.maxSteps ?? 8;
+  const model = requireProxyGatewayModel(options.config.model), maxSteps = options.maxSteps ?? 8;
   const declaredTools = requestTools(options.tools, "responses");
   let input: Loose[] = options.messages.map(message => ({ role: message.role === "assistant" ? "assistant" : "user", content: typeof message.content === "string" ? message.content : safeJson(message.content) }));
   let text = "", responseId = "", usage = zeroUsage();
@@ -390,9 +390,9 @@ async function* streamResponses(options: OpenAiCompatibleOptions, irreversible: 
       if (event.type === "response.output_text.delta" && typeof event.delta === "string") { irreversible(); text += event.delta; yield { type: "text-delta", delta: event.delta }; }
       else if (event.type === "response.output_item.done") { const item = record(event.item); if (item != null) observed.push(item); }
       else if (event.type === "response.completed") completed = record(event.response);
-      else if (event.type === "response.failed" || event.type === "error") throw new Error("9Router Responses request failed.");
+      else if (event.type === "response.failed" || event.type === "error") throw new Error("Proxy Gateway Responses request failed.");
     }
-    if (completed == null) throw new Error("9Router Responses stream ended before completion.");
+    if (completed == null) throw new Error("Proxy Gateway Responses stream ended before completion.");
     if (typeof completed.id === "string") responseId = completed.id;
     usage = addUsage(usage, responsesUsage(completed.usage));
     const output = Array.isArray(completed.output) && completed.output.length > 0 ? completed.output.map(item => record(item) ?? {}) : observed;
@@ -403,7 +403,7 @@ async function* streamResponses(options: OpenAiCompatibleOptions, irreversible: 
     const results = await executeCalls(calls, options.tools, options.executeTool, options.signal);
     input = [...input, ...output, ...results.map(({ call, output: toolOutput }) => ({ type: "function_call_output", call_id: call.id, output: toolOutput }))];
   }
-  throw new Error(`9Router exceeded Grok Bot's ${maxSteps}-step tool limit.`);
+  throw new Error(`Proxy Gateway exceeded Grok Bot's ${maxSteps}-step tool limit.`);
 }
 
 export async function* streamOpenAiCompatible(options: OpenAiCompatibleOptions): AsyncGenerator<OpenAiCompatibleEvent> {
@@ -430,9 +430,9 @@ export async function* streamOpenAiCompatibleModelStep(
   options: Omit<OpenAiCompatibleOptions, "executeTool" | "maxSteps">,
 ): AsyncGenerator<OpenAiCompatibleModelStepEvent> {
   if (options.config.protocol === "responses") {
-    throw new Error("9Router Responses mode is not available for Grok Bot's native tools. Choose Chat Completions or Auto.");
+    throw new Error("Proxy Gateway Responses mode is not available for Grok Bot's native tools. Choose Chat Completions or Auto.");
   }
-  const model = requireCliProxyModel(options.config.model);
+  const model = requireProxyGatewayModel(options.config.model);
   const declaredTools = requestTools(options.tools, "chat-completions");
   const response = await boundedRequest(options, "chat/completions", {
     model,
@@ -448,7 +448,7 @@ export async function* streamOpenAiCompatibleModelStep(
   let completed = false;
   for await (const chunk of sse(response)) {
     if (chunk === SSE_DONE) { completed = true; continue; }
-    if (chunk.error != null) throw new Error("9Router Chat Completions request failed.");
+    if (chunk.error != null) throw new Error("Proxy Gateway Chat Completions request failed.");
     if (typeof chunk.id === "string") responseId = chunk.id;
     const observedUsage = chatUsage(chunk.usage);
     if (observedUsage.inputTokens + observedUsage.outputTokens + observedUsage.cacheReadTokens > 0) usage = observedUsage;
@@ -474,13 +474,13 @@ export async function* streamOpenAiCompatibleModelStep(
       }
     }
   }
-  if (!completed) throw new Error("9Router Chat Completions stream ended before completion.");
+  if (!completed) throw new Error("Proxy Gateway Chat Completions stream ended before completion.");
   const callIds = new Set<string>();
   const content: Array<{ type: "text"; text: string } | { type: "tool-call"; toolCallId: string; toolName: string; args: unknown }> = [];
   if (text.length > 0) content.push({ type: "text", text });
   for (const call of calls.values()) {
     if (call.id.trim().length === 0 || call.name.trim().length === 0 || callIds.has(call.id)) {
-      throw new Error("9Router returned an invalid tool call.");
+      throw new Error("Proxy Gateway returned an invalid tool call.");
     }
     callIds.add(call.id);
     let args: unknown;

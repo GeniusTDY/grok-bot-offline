@@ -11,7 +11,7 @@ import { getLocalInferenceCliStatus } from "../shared/node/inference-router-loca
 import { isSandBoxRuntime, normalizeSandboxComputerConfig, type SandBoxRuntime, type SandboxComputerConfig } from "../shared/box-runtime.js";
 import {
   getLocalDockerStatus,
-  revokeCliProxyLeaseOrStopOwnedLocalDocker,
+  revokeProxyGatewayLeaseOrStopOwnedLocalDocker,
   localDockerStartOptionsForProvider,
   startLocalDockerBox,
   stopLocalDockerBox,
@@ -139,13 +139,13 @@ export function createMainEdgeHandlers(deps: MainEdgeDeps): HandlerMap {
       invoke(deps.settingsStore, "setInferenceProvider", provider);
       let settings: UnknownRecord | null = null;
       try {
-        if (previous === "cli-proxy" && provider !== "cli-proxy") {
+        if (previous === "proxy-gateway" && provider !== "proxy-gateway") {
           let applied: UnknownRecord | null = null;
-          await revokeCliProxyLeaseOrStopOwnedLocalDocker(
+          await revokeProxyGatewayLeaseOrStopOwnedLocalDocker(
             async () => {
               applied = await deps.syncHostSettingsToBoxStrict({
                 inferenceProvider: provider,
-                clearCliProxyCredentialLease: true,
+                clearProxyGatewayCredentialLease: true,
               });
             },
             stopOwnedLocalDocker,

@@ -942,11 +942,11 @@ export async function stopLocalDockerBoxForQuit(
 }
 
 /**
- * A host-side 9Router lease is memory-only, so stopping the app-owned host is
+ * A host-side Proxy Gateway lease is memory-only, so stopping the app-owned host is
  * the fail-closed fallback when its authenticated control channel cannot
  * confirm revocation. The ownership check remains inside stopLocalDockerBox.
  */
-export async function revokeCliProxyLeaseOrStopOwnedLocalDocker(
+export async function revokeProxyGatewayLeaseOrStopOwnedLocalDocker(
   revokeLease: () => Promise<unknown>,
   stopOwnedLocalDocker: () => Promise<void>,
 ): Promise<void> {
@@ -958,7 +958,7 @@ export async function revokeCliProxyLeaseOrStopOwnedLocalDocker(
     } catch (stopError) {
       throw new AggregateError(
         [revokeError, stopError],
-        "Could not revoke the 9Router credential lease or stop the owned local Docker VM.",
+        "Could not revoke the Proxy Gateway credential lease or stop the owned local Docker VM.",
       );
     }
   }
@@ -984,14 +984,14 @@ export function createSettingsRoutedHostConnector(
     ?? OPTIONAL_CREDENTIAL_TIMEOUT_MS;
   const usesStandaloneLocalWorkspace = (): boolean =>
     settings.getBoxRuntime() === "local-docker"
-    && settings.getInferenceProvider() === "cli-proxy";
+    && settings.getInferenceProvider() === "proxy-gateway";
   const localConnect = async (): Promise<GatewayConnection> => {
     for (let attempt = 0; attempt < 16; attempt += 1) {
       if (settings.getBoxRuntime() !== "local-docker") {
         throw new Error("Local Docker VM is no longer selected.");
       }
       const inferenceProvider = settings.getInferenceProvider();
-      // The 9Router local workspace is intentionally independent of Cursor
+      // The Proxy Gateway local workspace is intentionally independent of Cursor
       // account services. A remote Cursor inference credential belongs only
       // to the explicit Cursor provider; direct providers use their own
       // coordinator transport or narrowly mounted local authentication.

@@ -121,8 +121,8 @@ export interface CoordinatorControlExecutorDependencies {
   readonly getRpcTraceWindowTraceparent?: () => string | undefined;
   readonly listRoutedMcpTools?: () => Promise<unknown>;
   readonly executeRoutedMcpTool?: (request: unknown) => Promise<unknown>;
-  readonly getCliProxyTurnConfig?: () => Promise<unknown>;
-  readonly prepareCliProxyNativeTurn?: () => Promise<unknown>;
+  readonly getProxyGatewayTurnConfig?: () => Promise<unknown>;
+  readonly prepareProxyGatewayNativeTurn?: () => Promise<unknown>;
   readonly readLocalExecDaemonDiscovery?: () => Promise<LocalExecDiscovery | null>;
   readonly clearLocalExecDaemonDiscoveryIfMatches?: (expected: LocalExecDiscovery) => Promise<boolean>;
   readonly readLocalExecStartupQuarantines?: () => Promise<readonly LocalExecStartupQuarantine[]>;
@@ -736,15 +736,15 @@ export function createCoordinatorControlExecutors(
       if (dependencies.executeRoutedMcpTool == null) throw new Error("Desktop MCP routing is unavailable.");
       return await dependencies.executeRoutedMcpTool(request);
     },
-    getCliProxyTurnConfig: async () => {
-      if (dependencies.getCliProxyTurnConfig == null) throw new Error("9Router routing is unavailable.");
-      return await dependencies.getCliProxyTurnConfig();
+    getProxyGatewayTurnConfig: async () => {
+      if (dependencies.getProxyGatewayTurnConfig == null) throw new Error("Proxy Gateway routing is unavailable.");
+      return await dependencies.getProxyGatewayTurnConfig();
     },
-    prepareCliProxyNativeTurn: async () => {
-      if (dependencies.prepareCliProxyNativeTurn == null) {
-        throw new Error("Native 9Router routing is unavailable.");
+    prepareProxyGatewayNativeTurn: async () => {
+      if (dependencies.prepareProxyGatewayNativeTurn == null) {
+        throw new Error("Native Proxy Gateway routing is unavailable.");
       }
-      return await dependencies.prepareCliProxyNativeTurn();
+      return await dependencies.prepareProxyGatewayNativeTurn();
     },
     async mintLocalExecDaemonCredential() {
       return (await connector.issueLocalExecDaemonCredential?.()) ?? null;

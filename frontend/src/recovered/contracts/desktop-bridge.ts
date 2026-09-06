@@ -6,7 +6,7 @@
  * opaque return values stay unknown until their producing main-process handler
  * has been recovered with equal confidence.
  */
-import type { CliProxyPublicConfig, CliProxyStatus } from "../../../../source/shared/cli-proxy";
+import type { ProxyGatewayPublicConfig, ProxyGatewayStatus } from "../../../../source/shared/proxy-gateway";
 export type Unsubscribe = () => void;
 export type BridgeListener<Value = unknown> = (value: Value) => void;
 
@@ -373,7 +373,7 @@ export interface DesktopBoxRuntimeState {
 
 export type DesktopLocalWorkspaceStatus =
   | { readonly kind: "disabled" }
-  | { readonly kind: "ready"; readonly workspaceId: "local:9router" };
+  | { readonly kind: "ready"; readonly workspaceId: "local:proxy-gateway" };
 
 export interface AgentDesktopBridge {
   getPinnedAgents(): Promise<string[] | null>;
@@ -410,13 +410,13 @@ export interface DesktopBridge {
   commitStagedAttachments(paths: readonly string[], filenames: readonly string[]): Promise<string[] | null>;
   discardStagedAttachment(path: string): Promise<void>;
   readonly mcp: McpDesktopBridge;
-  readonly cliProxy: {
-    status(options?: { readonly testConnection?: boolean }): Promise<CliProxyStatus>;
+  readonly proxyGateway: {
+    status(options?: { readonly testConnection?: boolean }): Promise<ProxyGatewayStatus>;
     save(
-      config: CliProxyPublicConfig & { readonly apiKey?: string },
+      config: ProxyGatewayPublicConfig & { readonly apiKey?: string },
       onCredentialPersisted?: () => void,
-    ): Promise<CliProxyStatus>;
-    remove(): Promise<CliProxyStatus>;
+    ): Promise<ProxyGatewayStatus>;
+    remove(): Promise<ProxyGatewayStatus>;
   };
   forceGatewayReconnect(): Promise<DesktopLocalWorkspaceStatus>;
   pickAvatarSource(): Promise<string | null>;

@@ -70,15 +70,19 @@ function parseSettings(value: unknown): SandStoredSettings | null {
   if (typeof raw.autoReviewInstructions === "object" && raw.autoReviewInstructions != null) result.autoReviewInstructions = normalizeSandAutoReviewInstructions(raw.autoReviewInstructions as Record<string, unknown>);
   if (isSandLocalToolPermission(raw.localToolPermission)) result.localToolPermission = raw.localToolPermission;
   if (isSandLocalToolPermission(raw.localToolPermissionCeiling)) result.localToolPermissionCeiling = raw.localToolPermissionCeiling;
-  if (isSandInferenceProvider(raw.inferenceProvider)) result.inferenceProvider = raw.inferenceProvider;
+  if (isSandInferenceProvider(raw.inferenceProvider)) { result.inferenceProvider = raw.inferenceProvider; }
+  else if (raw.inferenceProvider === "cli-proxy") { result.inferenceProvider = "proxy-gateway"; } // legacy pre-rename value
   if (isSandBoxRuntime(raw.boxRuntime)) result.boxRuntime = raw.boxRuntime;
   if (raw.sandboxComputer !== undefined) result.sandboxComputer = normalizeSandboxComputerConfig(raw.sandboxComputer);
   if (typeof raw.inferenceRouterUsage === "object" && raw.inferenceRouterUsage != null && !Array.isArray(raw.inferenceRouterUsage)) {
     const usage = emptySandInferenceRouterUsage();
     const rawProviders = (raw.inferenceRouterUsage as { providers?: unknown }).providers;
     if (typeof rawProviders === "object" && rawProviders != null && !Array.isArray(rawProviders)) {
+      const rawProviderMap = rawProviders as Record<string, unknown>;
+      // legacy pre-rename key: carry persisted "cli-proxy" usage over to "proxy-gateway"
+      if (rawProviderMap["proxy-gateway"] === undefined && rawProviderMap["cli-proxy"] !== undefined) rawProviderMap["proxy-gateway"] = rawProviderMap["cli-proxy"];
       for (const provider of Object.keys(usage.providers) as SandInferenceProvider[]) {
-        const item = (rawProviders as Record<string, unknown>)[provider];
+        const item = rawProviderMap[provider];
         if (typeof item !== "object" || item == null || Array.isArray(item)) continue;
         const record = item as Record<string, unknown>;
         const count = (key: string): number => Number.isSafeInteger(record[key]) && (record[key] as number) >= 0 ? record[key] as number : 0;

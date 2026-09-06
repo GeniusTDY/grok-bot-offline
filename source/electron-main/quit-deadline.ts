@@ -53,7 +53,7 @@ export async function settlePartialDesktopQuit(
   try {
     await options.stopLocalDocker();
   } catch (error) {
-    reportFailure("coordinator", "cli-proxy-quit-revoke", error);
+    reportFailure("coordinator", "proxy-gateway-quit-revoke", error);
   }
   try {
     await options.stopSandboxComputer();

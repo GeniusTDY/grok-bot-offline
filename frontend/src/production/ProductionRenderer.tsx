@@ -3542,7 +3542,7 @@ export function ProductionRenderer({ bridge, coordinatorPort }: ProductionRender
     });
   }, [connectionController, rosterAccessReadiness.hasReachedBox, rosterAccessReadiness.isPrivacyBlocked, rosterAccessReadiness.rosterFailureCode]);
   const retryLocalWorkspace = useCallback(async () => {
-    if (workspaceSession.source !== "local-9router" || isRosterRetrying) return;
+    if (workspaceSession.source !== "local-proxy-gateway" || isRosterRetrying) return;
     setIsRosterRetrying(true);
     setTransport("connecting");
     try {
@@ -3554,8 +3554,8 @@ export function ProductionRenderer({ bridge, coordinatorPort }: ProductionRender
       setLocalWorkspace(next);
       if (next.kind !== "ready") {
         throw new Error(next.kind === "disabled"
-          ? next.blockers[0]?.message ?? "Local 9Router did not become ready."
-          : "Local 9Router status is still being checked.");
+          ? next.blockers[0]?.message ?? "Local Proxy Gateway did not become ready."
+          : "Local Proxy Gateway status is still being checked.");
       }
     } catch (error) {
       setTransport("down");
@@ -3564,9 +3564,9 @@ export function ProductionRenderer({ bridge, coordinatorPort }: ProductionRender
       setIsRosterRetrying(false);
     }
   }, [activateLocalWorkspace, bridge, client, isRosterRetrying, workspaceSession.source]);
-  const rosterListStatus = workspaceSession.source === "local-9router" && transport === "connecting" && !hasLoadedAgents
+  const rosterListStatus = workspaceSession.source === "local-proxy-gateway" && transport === "connecting" && !hasLoadedAgents
     ? <RosterStatus kind="loading" />
-    : workspaceSession.source === "local-9router" && (transport === "down" || rosterFailure != null || rosterLoadFailed)
+    : workspaceSession.source === "local-proxy-gateway" && (transport === "down" || rosterFailure != null || rosterLoadFailed)
       ? <RosterStatus isRetrying={isRosterRetrying} kind="error" onRetry={() => void retryLocalWorkspace()} />
       : rosterAccessReadiness.isLoaded
     ? agents.length === 0

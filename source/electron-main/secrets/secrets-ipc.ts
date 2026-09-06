@@ -10,12 +10,12 @@ import {
   SandUserSecretsStore,
   type SandUserSecretsStore as UserSecretsStore,
 } from "./user-secrets-store.js";
-import { SandCliProxySecretStore } from "./cli-proxy-secret-store.js";
-import { fetchCliProxyModels } from "../../shared/node/cli-proxy-models.js";
+import { SandProxyGatewaySecretStore } from "./proxy-gateway-secret-store.js";
+import { fetchProxyGatewayModels } from "../../shared/node/proxy-gateway-models.js";
 import {
-  CLI_PROXY_PERSISTED_CHANNEL,
-  normalizeCliProxySaveRequest,
-} from "../../shared/cli-proxy.js";
+  PROXY_GATEWAY_PERSISTED_CHANNEL,
+  normalizeProxyGatewaySaveRequest,
+} from "../../shared/proxy-gateway.js";
 
 export class SandBoxSecretsPushQuiescedError extends Error {
   constructor() { super("Box secrets pushes are quiesced for quit"); }
@@ -115,7 +115,7 @@ export interface SecretsIpcMain {
   handle(channel: string, listener: (event: any, request: any) => unknown): void;
 }
 
-function cliProxyPersistenceRequestId(value: unknown): string | null {
+function proxyGatewayPersistenceRequestId(value: unknown): string | null {
   if (typeof value !== "object" || value == null || Array.isArray(value)) return null;
   const requestId = Reflect.get(value, "persistenceRequestId");
   return typeof requestId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(requestId)
@@ -123,12 +123,12 @@ function cliProxyPersistenceRequestId(value: unknown): string | null {
     : null;
 }
 
-function publishCliProxyPersisted(event: unknown, requestId: string | null): void {
+function publishProxyGatewayPersisted(event: unknown, requestId: string | null): void {
   if (requestId == null || typeof event !== "object" || event == null) return;
   const sender = Reflect.get(event, "sender");
   const send = typeof sender === "object" && sender != null ? Reflect.get(sender, "send") : undefined;
   if (typeof send !== "function") return;
-  try { send.call(sender, CLI_PROXY_PERSISTED_CHANNEL, { requestId }); }
+  try { send.call(sender, PROXY_GATEWAY_PERSISTED_CHANNEL, { requestId }); }
   catch { /* The encrypted source is already authoritative; renderer teardown is harmless. */ }
 }
 
@@ -138,27 +138,27 @@ export function registerSecretsIpc(deps: {
   readonly stores: {
     readonly userSecretsStore: Pick<UserSecretsStore, "listKeys" | "isPersistent" | "reveal" | "upsert" | "remove">;
     readonly clientPersistenceStore: Pick<SandClientPersistenceStore, "read" | "write" | "remove" | "listKeys" | "migrateFromLocalStorage">;
-    readonly cliProxySecretStore: Pick<SandCliProxySecretStore, "status" | "save" | "remove" | "getConnectionConfig">;
+    readonly proxyGatewaySecretStore: Pick<SandProxyGatewaySecretStore, "status" | "save" | "remove" | "getConnectionConfig">;
   };
   readonly pushBoxSecrets: () => Promise<boolean>;
   /** Revoke any host-side memory lease before changing the encrypted source. */
-  readonly beforeCliProxyMutation?: () => Promise<unknown>;
+  readonly beforeProxyGatewayMutation?: () => Promise<unknown>;
   /** Re-evaluate login-free workspace ownership after the source changes. */
-  readonly afterCliProxyMutation?: () => Promise<unknown>;
+  readonly afterProxyGatewayMutation?: () => Promise<unknown>;
 }): void {
   const { ipcMain, guards, pushBoxSecrets } = deps;
-  const { userSecretsStore, clientPersistenceStore, cliProxySecretStore } = deps.stores;
-  const mutateCliProxySecret = async <T>(
+  const { userSecretsStore, clientPersistenceStore, proxyGatewaySecretStore } = deps.stores;
+  const mutateProxyGatewaySecret = async <T>(
     mutation: () => Promise<T>,
     onPersisted?: () => void,
   ): Promise<T> => {
     try {
-      await deps.beforeCliProxyMutation?.();
+      await deps.beforeProxyGatewayMutation?.();
       const result = await mutation();
       onPersisted?.();
       return result;
     } finally {
-      await deps.afterCliProxyMutation?.();
+      await deps.afterProxyGatewayMutation?.();
     }
   };
   ipcMain.handle("sand:secrets-list", async (event) => {
@@ -181,25 +181,25 @@ export function registerSecretsIpc(deps: {
     await userSecretsStore.remove(keys);
     return { synced: await pushBoxSecrets() };
   });
-  ipcMain.handle("sand:cli-proxy-status", async (event, request) => {
+  ipcMain.handle("sand:proxy-gateway-status", async (event, request) => {
     guards.assertTrustedSecretsSender(event);
-    const status = await cliProxySecretStore.status();
+    const status = await proxyGatewaySecretStore.status();
     if (request?.testConnection !== true) return status;
-    const probe = await fetchCliProxyModels(await cliProxySecretStore.getConnectionConfig());
+    const probe = await fetchProxyGatewayModels(await proxyGatewaySecretStore.getConnectionConfig());
     return { ...status, probe };
   });
-  ipcMain.handle("sand:cli-proxy-save", async (event, request) => {
+  ipcMain.handle("sand:proxy-gateway-save", async (event, request) => {
     guards.assertTrustedSecretsSender(event);
-    const persistenceRequestId = cliProxyPersistenceRequestId(request);
-    const validated = normalizeCliProxySaveRequest(request);
-    return await mutateCliProxySecret(
-      () => cliProxySecretStore.save(validated),
-      () => publishCliProxyPersisted(event, persistenceRequestId),
+    const persistenceRequestId = proxyGatewayPersistenceRequestId(request);
+    const validated = normalizeProxyGatewaySaveRequest(request);
+    return await mutateProxyGatewaySecret(
+      () => proxyGatewaySecretStore.save(validated),
+      () => publishProxyGatewayPersisted(event, persistenceRequestId),
     );
   });
-  ipcMain.handle("sand:cli-proxy-delete", async (event) => {
+  ipcMain.handle("sand:proxy-gateway-delete", async (event) => {
     guards.assertTrustedSecretsSender(event);
-    return await mutateCliProxySecret(() => cliProxySecretStore.remove());
+    return await mutateProxyGatewaySecret(() => proxyGatewaySecretStore.remove());
   });
   ipcMain.handle(CLIENT_PERSISTENCE_CHANNELS.read, async (event, request) => {
     guards.assertTrustedClientPersistenceSender(event);
@@ -240,7 +240,7 @@ export function createSecretsStores(
 ): {
   readonly userSecretsStore: SandUserSecretsStore;
   readonly clientPersistenceStore: SandClientPersistenceStore;
-  readonly cliProxySecretStore: SandCliProxySecretStore;
+  readonly proxyGatewaySecretStore: SandProxyGatewaySecretStore;
   readonly pushBoxSecrets: ReturnType<typeof createBoxSecretsPush>;
   readonly pushTelemetry: ReturnType<typeof createBoxSecretsPushTelemetry>;
 } {
@@ -251,7 +251,7 @@ export function createSecretsStores(
   });
   return {
     userSecretsStore,
-    cliProxySecretStore: new SandCliProxySecretStore(),
+    proxyGatewaySecretStore: new SandProxyGatewaySecretStore(),
     clientPersistenceStore: new SandClientPersistenceStore(clientPersistenceDir, createNodeClientPersistenceFiles()),
     pushBoxSecrets: createBoxSecretsPush({
       userSecretsStore,

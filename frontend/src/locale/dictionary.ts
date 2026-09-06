@@ -14,15 +14,15 @@ export type TranslationDictionary = Readonly<Record<string, string>>;
 export const ZH_TRANSLATIONS: TranslationDictionary = {
   // ---- Welcome / no-login (injected) ----
   "Continue without signing in": "在不登录的情况下继续",
-  "Finish 9Router setup": "完成 9Router 设置",
-  "Configure 9Router": "配置 9Router",
-  "Local 9Router is ready. Continue without signing in.": "本地 9Router 已就绪，可以跳过登录继续使用。",
-  "Checking your local 9Router workspace…": "正在检查本地 9Router 工作区…",
-  "Finish the Local 9Router setup to continue without signing in.": "请先完成本地 9Router 设置，再跳过登录继续使用。",
-  "Finish the local 9Router setup to continue without signing in.": "请先完成本地 9Router 设置，再跳过登录继续使用。",
-  "OpenAI-compatible / 9Router": "OpenAI 兼容 / 9Router",
-  "Route through local 9Router at 127.0.0.1:20128 or another reviewed OpenAI-compatible endpoint.": "通过本机 127.0.0.1:20128 的 9Router 或其他经过审核的 OpenAI 兼容端点路由。",
-  "Your local 9Router workspace": "你的本地 9Router 工作区",
+  "Finish Proxy Gateway setup": "完成代理网关设置",
+  "Configure Proxy Gateway": "配置代理网关",
+  "Local Proxy Gateway is ready. Continue without signing in.": "本地代理网关已就绪，可以跳过登录继续使用。",
+  "Checking your local Proxy Gateway workspace…": "正在检查本地代理网关工作区…",
+  "Finish the Local Proxy Gateway setup to continue without signing in.": "请先完成本地代理网关设置，再跳过登录继续使用。",
+  "Finish the local Proxy Gateway setup to continue without signing in.": "请先完成本地代理网关设置，再跳过登录继续使用。",
+  "OpenAI-compatible / Proxy Gateway": "OpenAI 兼容 / 代理网关",
+  "Route through local Proxy Gateway at 127.0.0.1:20128 or another reviewed OpenAI-compatible endpoint.": "通过本机 127.0.0.1:20128 的代理网关或其他经过审核的 OpenAI 兼容端点路由。",
+  "Your local Proxy Gateway workspace": "你的本地代理网关工作区",
   "Router": "路由",
 
   // ---- Top-level navigation / chrome ----

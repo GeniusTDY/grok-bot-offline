@@ -218,11 +218,11 @@ export async function composeCoordinator(dependencies: ComposeCoordinatorDepende
     dataDir: bootstrap.processConfig.dataDir,
     postEvent: (family, payload) => server.postEvent(family, payload),
     dispatchRemote: (method, args) => {
-      if (method === "getCliProxyTurnConfig") {
-        return command(commands, "getCliProxyTurnConfig", args);
+      if (method === "getProxyGatewayTurnConfig") {
+        return command(commands, "getProxyGatewayTurnConfig", args);
       }
-      if (method === "prepareCliProxyNativeTurn") {
-        return command(commands, "prepareCliProxyNativeTurn", args);
+      if (method === "prepareProxyGatewayNativeTurn") {
+        return command(commands, "prepareProxyGatewayNativeTurn", args);
       }
       if (method === "listRoutedMcpTools") {
         return command(commands, "listRoutedMcpTools", args);

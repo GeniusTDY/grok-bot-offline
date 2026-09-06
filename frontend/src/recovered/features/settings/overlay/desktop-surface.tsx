@@ -31,7 +31,7 @@ import {
 import { GeneralSettingsPanel, RouterSettingsPanel, UpdatesSettingsPanel, UsageSettingsPanel, type RouterBoxRuntimeMode, type RouterBoxRuntimeState } from "./panels";
 import { SettingsModalShell, type SettingsSectionId } from "./view";
 import { DEFAULT_ROUTER_PROVIDER, isRouterProviderId, type RouterProviderId } from "./router";
-import type { CliProxyStatus } from "../../../../../../source/shared/cli-proxy";
+import type { ProxyGatewayStatus } from "../../../../../../source/shared/proxy-gateway";
 import type { AutoReviewSettings } from "./auto-review";
 import type { SettingsComputerMount } from "./computer";
 import { SettingsNoticeView, settingsNoticeFromEvent, type SettingsNotice } from "./notice";
@@ -99,8 +99,8 @@ export function SettingsDesktopSurface({ bridge, coordinatorClient = null, initi
   const [boxRuntime, setBoxRuntime] = useState<RouterBoxRuntimeState | null>(null);
   const [boxRuntimePending, setBoxRuntimePending] = useState(false);
   const [boxRuntimeError, setBoxRuntimeError] = useState<string | null>(null);
-  const [cliProxyStatus, setCliProxyStatus] = useState<CliProxyStatus | null>(null);
-  const [cliProxyPending, setCliProxyPending] = useState(false);
+  const [proxyGatewayStatus, setProxyGatewayStatus] = useState<ProxyGatewayStatus | null>(null);
+  const [proxyGatewayPending, setProxyGatewayPending] = useState(false);
   const [localWorkspaceReadiness, setLocalWorkspaceReadiness] = useState<LocalWorkspaceReadiness>({ kind: "checking" });
   const [localWorkspaceError, setLocalWorkspaceError] = useState<string | null>(null);
   const localWorkspaceClaimRef = useRef<DesktopLocalWorkspaceStatus>(initialLocalWorkspace?.kind === "ready"
@@ -219,7 +219,7 @@ export function SettingsDesktopSurface({ bridge, coordinatorClient = null, initi
     }).catch(() => {
       if (active) setRouterProvider(DEFAULT_ROUTER_PROVIDER);
     });
-    void bridge.cliProxy.status().then((status) => { if (active) setCliProxyStatus(status); }).catch(() => { if (active) setCliProxyStatus(null); });
+    void bridge.proxyGateway.status().then((status) => { if (active) setProxyGatewayStatus(status); }).catch(() => { if (active) setProxyGatewayStatus(null); });
     const refreshBoxRuntime = () => {
       void bridge.agent.getBoxRuntime().then((status) => {
         if (!active) return;
@@ -301,7 +301,7 @@ export function SettingsDesktopSurface({ bridge, coordinatorClient = null, initi
       onClose={onClose}
       renderSection={(section: SettingsSectionId) => {
         // Router configuration is intentionally independent from the signed-in
-        // settings snapshot so a fresh profile can configure 9Router first.
+        // settings snapshot so a fresh profile can configure Proxy Gateway first.
         if (section === "router") return (
           <RouterSettingsPanel
             boxRuntime={{
@@ -329,64 +329,64 @@ export function SettingsDesktopSurface({ bridge, coordinatorClient = null, initi
                 }
               }
             }}
-            cliProxy={{
-              status: cliProxyStatus,
-              pending: cliProxyPending,
+            proxyGateway={{
+              status: proxyGatewayStatus,
+              pending: proxyGatewayPending,
               onSave: async (config, onCredentialPersisted) => {
                 onInvalidateLocalWorkspace();
-                setCliProxyPending(true);
+                setProxyGatewayPending(true);
                 localWorkspaceClaimRef.current = { kind: "disabled" };
                 try {
-                  setCliProxyStatus(await bridge.cliProxy.save(config, onCredentialPersisted));
+                  setProxyGatewayStatus(await bridge.proxyGateway.save(config, onCredentialPersisted));
                   await refreshLocalWorkspace();
                 }
                 catch (reason) {
                   const message = reason instanceof Error ? reason.message : String(reason);
                   publishSurfaceNotice({ kind: "error", operation: "settings-router-provider", message }, handleNotice, onStatus);
                   throw reason;
-                } finally { setCliProxyPending(false); }
+                } finally { setProxyGatewayPending(false); }
               },
               onDelete: async () => {
                 onInvalidateLocalWorkspace();
-                setCliProxyPending(true);
+                setProxyGatewayPending(true);
                 localWorkspaceClaimRef.current = { kind: "disabled" };
                 try {
-                  setCliProxyStatus(await bridge.cliProxy.remove());
+                  setProxyGatewayStatus(await bridge.proxyGateway.remove());
                   await refreshLocalWorkspace();
                 }
                 catch (reason) {
                   const message = reason instanceof Error ? reason.message : String(reason);
                   publishSurfaceNotice({ kind: "error", operation: "settings-router-provider", message }, handleNotice, onStatus);
                   throw reason;
-                } finally { setCliProxyPending(false); }
+                } finally { setProxyGatewayPending(false); }
               },
               onTest: async () => {
-                setCliProxyPending(true);
-                try { setCliProxyStatus(await bridge.cliProxy.status({ testConnection: true })); }
+                setProxyGatewayPending(true);
+                try { setProxyGatewayStatus(await bridge.proxyGateway.status({ testConnection: true })); }
                 catch (reason) {
                   const message = reason instanceof Error ? reason.message : String(reason);
                   publishSurfaceNotice({ kind: "error", operation: "settings-router-provider", message }, handleNotice, onStatus);
                   throw reason;
-                } finally { setCliProxyPending(false); }
+                } finally { setProxyGatewayPending(false); }
               }
             }}
             localWorkspace={{
               readiness: localWorkspaceReadiness,
               error: localWorkspaceError,
               onContinue: async (config, onCredentialPersisted) => {
-                if (cliProxyPending || routerPending || boxRuntimePending) return;
+                if (proxyGatewayPending || routerPending || boxRuntimePending) return;
                 onInvalidateLocalWorkspace();
-                setCliProxyPending(true);
+                setProxyGatewayPending(true);
                 setLocalWorkspaceError(null);
                 localWorkspaceClaimRef.current = { kind: "disabled" };
                 try {
-                  const saved = await bridge.cliProxy.save(config, onCredentialPersisted);
-                  setCliProxyStatus(saved);
+                  const saved = await bridge.proxyGateway.save(config, onCredentialPersisted);
+                  setProxyGatewayStatus(saved);
                   const configuredReadiness = await refreshLocalWorkspace(false);
                   if (!localWorkspaceConfigurationReady(configuredReadiness)) {
                     throw new Error(configuredReadiness.kind === "disabled"
-                      ? configuredReadiness.blockers[0]?.message ?? "Local 9Router setup is incomplete."
-                      : "Local 9Router status is still being checked.");
+                      ? configuredReadiness.blockers[0]?.message ?? "Local Proxy Gateway setup is incomplete."
+                      : "Local Proxy Gateway status is still being checked.");
                   }
                   const claimed = await onActivateLocalWorkspace();
                   localWorkspaceClaimRef.current = isLocalWorkspaceClaimReady(claimed) ? claimed : { kind: "disabled" };
@@ -401,8 +401,8 @@ export function SettingsDesktopSurface({ bridge, coordinatorClient = null, initi
                     const failedReadiness = await refreshLocalWorkspace(false, claimed);
                     throw new Error(failedReadiness.kind === "disabled"
                       ? failedReadiness.blockers.find((blocker) => blocker.code === "coordinator-not-connected")?.message
-                        ?? "The Local 9Router coordinator is unavailable."
-                      : "The Local 9Router coordinator is unavailable.");
+                        ?? "The Local Proxy Gateway coordinator is unavailable."
+                      : "The Local Proxy Gateway coordinator is unavailable.");
                   }
                   await coordinatorClient.waitForTransportConnected(20_000);
                   const connectedReadiness = await refreshLocalWorkspace(false, claimed);
@@ -411,8 +411,8 @@ export function SettingsDesktopSurface({ bridge, coordinatorClient = null, initi
                     || !isLocalWorkspaceClaimReady(localWorkspaceClaimRef.current)) {
                     const latestReadiness = await refreshLocalWorkspace(false);
                     throw new Error(latestReadiness.kind === "disabled"
-                      ? latestReadiness.blockers[0]?.message ?? "Local 9Router did not become ready."
-                      : "Local 9Router status is still being checked.");
+                      ? latestReadiness.blockers[0]?.message ?? "Local Proxy Gateway did not become ready."
+                      : "Local Proxy Gateway status is still being checked.");
                   }
                   onLocalWorkspaceReady?.(connectedReadiness);
                 } catch (reason) {
@@ -422,7 +422,7 @@ export function SettingsDesktopSurface({ bridge, coordinatorClient = null, initi
                   publishSurfaceNotice({ kind: "error", operation: "settings-router-provider", message }, handleNotice, onStatus);
                   throw reason;
                 } finally {
-                  setCliProxyPending(false);
+                  setProxyGatewayPending(false);
                 }
               }
             }}

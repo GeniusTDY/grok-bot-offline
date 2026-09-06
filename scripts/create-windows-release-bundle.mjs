@@ -133,7 +133,7 @@ async function buildAttempt({ directory, portable, assetName, identity, packageV
       packagedWindows: "verified-on-windows-latest",
       dockerDesktop: "destination-validation-required",
       tailscalePeer: "destination-validation-required",
-      live9RouterModel: "destination-validation-required",
+      liveProxyGatewayModel: "destination-validation-required",
     },
     trust: { official: false, distributionSigned: false, publicReleaseEligible: false },
   };

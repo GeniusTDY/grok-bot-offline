@@ -102,7 +102,7 @@ export function resolveBoxExecShellIdentity(
     throw new Error(`The box daemon cannot drop shells from uid/gid ${currentUid}:${currentGid} to ${identity.uid}:${identity.gid}.`);
   }
   // A same-uid daemon would leave its original Docker environment readable via
-  // /proc. Standalone 9Router mode therefore requires a privileged controller
+  // /proc. Standalone Proxy Gateway mode therefore requires a privileged controller
   // and an unprivileged, distinct shell identity.
   if (currentUid === identity.uid) throw new Error("The box daemon and model shell must not share a uid.");
   return identity;

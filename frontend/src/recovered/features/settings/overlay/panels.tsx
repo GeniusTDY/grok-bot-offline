@@ -14,13 +14,13 @@ import { SandSwitch } from "../../../ui/sand-form-primitives";
 import { OverlayDialog } from "../../../ui/overlay-primitives";
 import {
   ROUTER_PROVIDERS,
-  cliProxyDraftOrigin,
-  createCliProxyApiKeyPersistenceGuard,
+  proxyGatewayDraftOrigin,
+  createProxyGatewayApiKeyPersistenceGuard,
   routerProviderById,
-  shouldClearCliProxyApiKeyDraft,
+  shouldClearProxyGatewayApiKeyDraft,
   type RouterProviderId,
 } from "./router";
-import type { CliProxyPublicConfig, CliProxyStatus } from "../../../../../../source/shared/cli-proxy";
+import type { ProxyGatewayPublicConfig, ProxyGatewayStatus } from "../../../../../../source/shared/proxy-gateway";
 import type { LocalWorkspaceReadiness } from "../../../../production/local-workspace";
 
 export type AccountState =
@@ -477,11 +477,11 @@ export interface RouterSettingsPanelProps {
     error?: string | null;
     onChange(mode: RouterBoxRuntimeMode): void | Promise<unknown>;
   };
-  cliProxy?: {
-    status: CliProxyStatus | null;
+  proxyGateway?: {
+    status: ProxyGatewayStatus | null;
     pending: boolean;
     onSave(
-      config: CliProxyPublicConfig & { readonly apiKey?: string },
+      config: ProxyGatewayPublicConfig & { readonly apiKey?: string },
       onCredentialPersisted: () => void,
     ): Promise<unknown>;
     onDelete(): Promise<unknown>;
@@ -491,7 +491,7 @@ export interface RouterSettingsPanelProps {
     readiness: LocalWorkspaceReadiness;
     error?: string | null;
     onContinue(
-      config: CliProxyPublicConfig & { readonly apiKey?: string },
+      config: ProxyGatewayPublicConfig & { readonly apiKey?: string },
       onCredentialPersisted: () => void,
     ): Promise<unknown>;
   };
@@ -511,7 +511,7 @@ export interface RouterBoxRuntimeState {
   } | null;
 }
 
-export function RouterSettingsPanel({ provider, pending = false, onChange, boxRuntime, cliProxy, localWorkspace }: RouterSettingsPanelProps) {
+export function RouterSettingsPanel({ provider, pending = false, onChange, boxRuntime, proxyGateway, localWorkspace }: RouterSettingsPanelProps) {
   const selectedProvider = routerProviderById(provider);
   const [baseUrl, setBaseUrl] = useState("");
   const [model, setModel] = useState("");
@@ -529,7 +529,7 @@ export function RouterSettingsPanel({ provider, pending = false, onChange, boxRu
     setApiKey("");
   };
   const updateBaseUrl = (nextBaseUrl: string) => {
-    if (shouldClearCliProxyApiKeyDraft(
+    if (shouldClearProxyGatewayApiKeyDraft(
       apiKeyRef.current,
       apiKeyOriginRef.current,
       nextBaseUrl,
@@ -542,21 +542,21 @@ export function RouterSettingsPanel({ provider, pending = false, onChange, boxRu
     apiKeyRef.current = nextApiKey;
     apiKeyOriginRef.current = nextApiKey.trim().length === 0
       ? null
-      : cliProxyDraftOrigin(baseUrlRef.current);
+      : proxyGatewayDraftOrigin(baseUrlRef.current);
     setApiKey(nextApiKey);
   };
   useEffect(() => {
-    if (cliProxy?.status == null) return;
-    updateBaseUrl(cliProxy.status.baseUrl);
+    if (proxyGateway?.status == null) return;
+    updateBaseUrl(proxyGateway.status.baseUrl);
     setModel((current) => {
-      if (cliProxy.status!.model.trim().length > 0) return cliProxy.status!.model;
-      if (!cliProxy.status!.configured && cliProxy.status!.probe == null) return "";
+      if (proxyGateway.status!.model.trim().length > 0) return proxyGateway.status!.model;
+      if (!proxyGateway.status!.configured && proxyGateway.status!.probe == null) return "";
       if (current.trim().length > 0) return current;
-      return cliProxy.status!.probe?.models[0] ?? "";
+      return proxyGateway.status!.probe?.models[0] ?? "";
     });
-    setProtocol(cliProxy.status.protocol);
-  }, [cliProxy?.status]);
-  const config = (): CliProxyPublicConfig & { readonly apiKey?: string } => {
+    setProtocol(proxyGateway.status.protocol);
+  }, [proxyGateway?.status]);
+  const config = (): ProxyGatewayPublicConfig & { readonly apiKey?: string } => {
     // Read the key from the same mutable identity tracked by the persistence
     // guard, so the submitted bytes and submitted revision cannot diverge
     // between an input event and React's next render.
@@ -572,7 +572,7 @@ export function RouterSettingsPanel({ provider, pending = false, onChange, boxRu
       ...(draftApiKey.trim().length === 0 ? {} : { apiKey: draftApiKey })
     };
   };
-  const credentialPersistenceAcknowledgement = () => createCliProxyApiKeyPersistenceGuard(
+  const credentialPersistenceAcknowledgement = () => createProxyGatewayApiKeyPersistenceGuard(
     {
       revision: apiKeyRevisionRef.current,
       origin: apiKeyOriginRef.current,
@@ -593,23 +593,23 @@ export function RouterSettingsPanel({ provider, pending = false, onChange, boxRu
       return false;
     }
   };
-  const saveCliProxy = async () => {
-    if (cliProxy == null || cliProxy.pending) return;
+  const saveProxyGateway = async () => {
+    if (proxyGateway == null || proxyGateway.pending) return;
     const onCredentialPersisted = credentialPersistenceAcknowledgement();
-    await runAction(() => cliProxy.onSave(config(), onCredentialPersisted));
+    await runAction(() => proxyGateway.onSave(config(), onCredentialPersisted));
   };
   const continueWithoutSignIn = async () => {
-    if (localWorkspace == null || cliProxy?.pending !== false || pending) return;
+    if (localWorkspace == null || proxyGateway?.pending !== false || pending) return;
     const onCredentialPersisted = credentialPersistenceAcknowledgement();
     await runAction(() => localWorkspace.onContinue(config(), onCredentialPersisted));
   };
-  const savedModel = cliProxy?.status?.model.trim() ?? "";
+  const savedModel = proxyGateway?.status?.model.trim() ?? "";
   const draftModel = model.trim();
   const supportedProtocol = protocol === "auto" || protocol === "chat-completions";
-  const hasCredentialDraft = cliProxy?.status?.configured === true || apiKey.trim().length > 0;
+  const hasCredentialDraft = proxyGateway?.status?.configured === true || apiKey.trim().length > 0;
   const modelSaved = draftModel.length > 0 && savedModel === draftModel;
-  const protocolSaved = supportedProtocol && cliProxy?.status?.protocol === protocol;
-  const providerReady = provider === "cli-proxy";
+  const protocolSaved = supportedProtocol && proxyGateway?.status?.protocol === protocol;
+  const providerReady = provider === "proxy-gateway";
   const runtimeSelected = boxRuntime?.state?.mode === "local-docker";
   const dockerReady = runtimeSelected && boxRuntime?.state?.status?.ready === true;
   const workspaceClaimReady = localWorkspace != null && localWorkspace.readiness.kind !== "checking"
@@ -624,38 +624,38 @@ export function RouterSettingsPanel({ provider, pending = false, onChange, boxRu
     && supportedProtocol
     && baseUrl.trim().length > 0;
   const checklist = [
-    { label: "OpenAI-compatible / 9Router selected", state: providerReady ? "ready" : "blocked", detail: providerReady ? "Ready" : "Select this provider above." },
+    { label: "OpenAI-compatible / Proxy Gateway selected", state: providerReady ? "ready" : "blocked", detail: providerReady ? "Ready" : "Select this provider above." },
     { label: "Local Docker VM selected", state: runtimeSelected ? "ready" : "blocked", detail: runtimeSelected ? "Ready" : "Turn on Use local Docker VM." },
     { label: "Local Docker VM ready", state: dockerReady ? "ready" : "blocked", detail: dockerReady ? "Ready" : runtimeSelected ? "Start Docker Desktop, then choose Repair Local Docker VM." : "Waiting for Local Docker selection." },
-    { label: "Proxy/client API key", state: cliProxy?.status?.configured ? "ready" : apiKey.trim().length > 0 ? "pending" : "blocked", detail: cliProxy?.status?.configured ? "Saved" : apiKey.trim().length > 0 ? "Entered — save required" : "Enter the required key." },
+    { label: "Proxy/client API key", state: proxyGateway?.status?.configured ? "ready" : apiKey.trim().length > 0 ? "pending" : "blocked", detail: proxyGateway?.status?.configured ? "Saved" : apiKey.trim().length > 0 ? "Entered — save required" : "Enter the required key." },
     { label: "Model", state: modelSaved ? "ready" : draftModel.length > 0 ? "pending" : "blocked", detail: modelSaved ? `Saved: ${savedModel}` : draftModel.length > 0 ? `Selected: ${draftModel} — save required` : "Test the connection and choose a model." },
     { label: "Native tool protocol", state: protocolSaved ? "ready" : supportedProtocol ? "pending" : "blocked", detail: protocolSaved ? "Saved" : supportedProtocol ? "Selected — save required" : "Choose Chat Completions or Auto." },
     { label: "Local workspace claim ready", state: workspaceClaimReady ? "ready" : "blocked", detail: workspaceClaimReady ? "Confirmed by the main process" : "Save and continue to start the local workspace." },
-    { label: "Coordinator connected", state: coordinatorConnected ? "ready" : "blocked", detail: coordinatorConnected ? "Connected" : "Waiting for the Local 9Router coordinator." }
+    { label: "Coordinator connected", state: coordinatorConnected ? "ready" : "blocked", detail: coordinatorConnected ? "Connected" : "Waiting for the Local Proxy Gateway coordinator." }
   ] as const;
   return (
     <div className="sand-router-section">
-      {provider === "cli-proxy" && localWorkspace ? <SettingsGroup title="Continue without signing in">
+      {provider === "proxy-gateway" && localWorkspace ? <SettingsGroup title="Continue without signing in">
         <div className="sand-provider-usage-card" style={{ gap: 10 }}>
-          <strong>{localWorkspace.readiness.kind === "ready" ? "Local 9Router is ready" : "Finish the Local 9Router setup"}</strong>
-          <ul aria-label="Local 9Router readiness" style={{ display: "grid", gap: 6, listStyle: "none", margin: 0, padding: 0 }}>
+          <strong>{localWorkspace.readiness.kind === "ready" ? "Local Proxy Gateway is ready" : "Finish the Local Proxy Gateway setup"}</strong>
+          <ul aria-label="Local Proxy Gateway readiness" style={{ display: "grid", gap: 6, listStyle: "none", margin: 0, padding: 0 }}>
             {checklist.map((item) => <li key={item.label} style={{ alignItems: "start", display: "grid", gap: 8, gridTemplateColumns: "18px 1fr" }}>
               <span aria-hidden="true">{item.state === "ready" ? "✓" : item.state === "pending" ? "•" : "○"}</span>
               <span><strong>{item.label}</strong><small style={{ display: "block" }}>{item.detail}</small></span>
             </li>)}
           </ul>
           {localWorkspace.readiness.kind === "disabled" ? <small aria-live="polite" role="status">Next: {localWorkspace.readiness.blockers[0]?.message}</small> : null}
-          {cliProxy?.status?.probe != null && savedModel.length === 0 && draftModel.length > 0
+          {proxyGateway?.status?.probe != null && savedModel.length === 0 && draftModel.length > 0
             ? <small aria-live="polite" role="status">Connection succeeded. The first available model was selected as a draft; save is still required.</small>
             : null}
           {localWorkspace.error ? <small aria-live="assertive" role="alert" style={{ color: "var(--cursor-error-foreground, #b42318)" }}>{localWorkspace.error}</small> : null}
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <SandButton
-              disabled={cliProxy?.pending !== false || pending || !canContinueDraft}
+              disabled={proxyGateway?.pending !== false || pending || !canContinueDraft}
               onClick={() => { void continueWithoutSignIn(); }}
               size="sm"
               variant="primary"
-            >{cliProxy?.pending ? "Preparing workspace…" : "Save & continue without sign-in"}</SandButton>
+            >{proxyGateway?.pending ? "Preparing workspace…" : "Save & continue without sign-in"}</SandButton>
           </div>
         </div>
       </SettingsGroup> : null}
@@ -707,20 +707,20 @@ export function RouterSettingsPanel({ provider, pending = false, onChange, boxRu
           </div> : null}
         </div>
       </SettingsGroup> : null}
-      {provider === "cli-proxy" && cliProxy ? <SettingsGroup title="9Router connection">
+      {provider === "proxy-gateway" && proxyGateway ? <SettingsGroup title="Proxy Gateway connection">
         <div className="sand-provider-usage-card" style={{ gap: 12 }}>
-          <label><span className="sand-settings-copy"><strong>Base URL</strong><small>Any HTTP(S) OpenAI-compatible endpoint is accepted, including custom path prefixes (e.g. http://host/api/v2). If the path is omitted, /v1 is appended.</small></span><input aria-label="9Router Base URL" disabled={cliProxy.pending} onChange={(event) => updateBaseUrl(event.currentTarget.value)} spellCheck={false} type="url" value={baseUrl} /></label>
-          <label><span className="sand-settings-copy"><strong>Model ID</strong><small>Enter the exact ID. If unknown, save the key first, run Test &amp; load models, choose one, then save again. Manual entry stays available when /v1/models omits a model.</small></span><input aria-label="9Router model" disabled={cliProxy.pending} list="sand-9router-models" onChange={(event) => setModel(event.currentTarget.value)} placeholder="provider/model-id" spellCheck={false} type="text" value={model} /><datalist id="sand-9router-models">{cliProxy.status?.probe?.models.map((id) => <option key={id} value={id} />)}</datalist></label>
-          <label><span className="sand-settings-copy"><strong>API key</strong><small>{cliProxy.status?.configured ? "A required proxy/client API key is saved. Leave this blank to keep it." : "Required. Use the 9Router proxy/client API key, not its management key."}</small></span><input aria-label="9Router API key" autoComplete="new-password" disabled={cliProxy.pending} onChange={(event) => updateApiKey(event.currentTarget.value)} placeholder={cliProxy.status?.configured ? "Saved key (enter to replace)" : "Proxy API key"} type="password" value={apiKey} /></label>
-          <label><span className="sand-settings-copy"><strong>Protocol</strong><small>Use Chat Completions (or Auto, which prefers it) for the full Local Docker tool loop. Explicit Responses mode is blocked for native-agent turns.</small></span><SandSelect ariaLabel="9Router protocol" disabled={cliProxy.pending} onValueChange={setProtocol} options={[{ value: "chat-completions", label: "Chat Completions" }, { value: "responses", label: "Responses (not for Local Docker)" }, { value: "auto", label: "Auto (Chat first)" }]} placement="bottom-end" value={protocol} /></label>
-          <small>Use the current stable 9Router release (v0.5.35 when reviewed); older builds have known authorization bypasses. Local Docker enables built-in agent, shell, file, browser, and computer tools; account-bound cloud features remain unavailable without sign-in.</small>
+          <label><span className="sand-settings-copy"><strong>Base URL</strong><small>Any HTTP(S) OpenAI-compatible endpoint is accepted, including custom path prefixes (e.g. http://host/api/v2). If the path is omitted, /v1 is appended.</small></span><input aria-label="Proxy Gateway Base URL" disabled={proxyGateway.pending} onChange={(event) => updateBaseUrl(event.currentTarget.value)} spellCheck={false} type="url" value={baseUrl} /></label>
+          <label><span className="sand-settings-copy"><strong>Model ID</strong><small>Enter the exact ID. If unknown, save the key first, run Test &amp; load models, choose one, then save again. Manual entry stays available when /v1/models omits a model.</small></span><input aria-label="Proxy Gateway model" disabled={proxyGateway.pending} list="sand-proxy-gateway-models" onChange={(event) => setModel(event.currentTarget.value)} placeholder="provider/model-id" spellCheck={false} type="text" value={model} /><datalist id="sand-proxy-gateway-models">{proxyGateway.status?.probe?.models.map((id) => <option key={id} value={id} />)}</datalist></label>
+          <label><span className="sand-settings-copy"><strong>API key</strong><small>{proxyGateway.status?.configured ? "A required proxy/client API key is saved. Leave this blank to keep it." : "Required. Use the Proxy Gateway proxy/client API key, not its management key."}</small></span><input aria-label="Proxy Gateway API key" autoComplete="new-password" disabled={proxyGateway.pending} onChange={(event) => updateApiKey(event.currentTarget.value)} placeholder={proxyGateway.status?.configured ? "Saved key (enter to replace)" : "Proxy API key"} type="password" value={apiKey} /></label>
+          <label><span className="sand-settings-copy"><strong>Protocol</strong><small>Use Chat Completions (or Auto, which prefers it) for the full Local Docker tool loop. Explicit Responses mode is blocked for native-agent turns.</small></span><SandSelect ariaLabel="Proxy Gateway protocol" disabled={proxyGateway.pending} onValueChange={setProtocol} options={[{ value: "chat-completions", label: "Chat Completions" }, { value: "responses", label: "Responses (not for Local Docker)" }, { value: "auto", label: "Auto (Chat first)" }]} placement="bottom-end" value={protocol} /></label>
+          <small>Use the current stable Proxy Gateway release (v0.5.35 when reviewed); older builds have known authorization bypasses. Local Docker enables built-in agent, shell, file, browser, and computer tools; account-bound cloud features remain unavailable without sign-in.</small>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <SandButton disabled={cliProxy.pending || !cliProxy.status?.configured} onClick={() => { void runAction(async () => { await cliProxy.onDelete(); clearApiKeyDraft(); }); }} size="sm" variant="secondary">Delete credential</SandButton>
-            <SandButton disabled={cliProxy.pending || !cliProxy.status?.configured} onClick={() => { void runAction(() => cliProxy.onTest()); }} size="sm" variant="secondary">Test &amp; load models</SandButton>
-            <SandButton disabled={cliProxy.pending || baseUrl.trim().length === 0 || (!cliProxy.status?.configured && apiKey.trim().length === 0)} onClick={() => void saveCliProxy()} size="sm" variant="primary">{cliProxy.pending ? "Saving…" : "Save 9Router"}</SandButton>
+            <SandButton disabled={proxyGateway.pending || !proxyGateway.status?.configured} onClick={() => { void runAction(async () => { await proxyGateway.onDelete(); clearApiKeyDraft(); }); }} size="sm" variant="secondary">Delete credential</SandButton>
+            <SandButton disabled={proxyGateway.pending || !proxyGateway.status?.configured} onClick={() => { void runAction(() => proxyGateway.onTest()); }} size="sm" variant="secondary">Test &amp; load models</SandButton>
+            <SandButton disabled={proxyGateway.pending || baseUrl.trim().length === 0 || (!proxyGateway.status?.configured && apiKey.trim().length === 0)} onClick={() => void saveProxyGateway()} size="sm" variant="primary">{proxyGateway.pending ? "Saving…" : "Save Proxy Gateway"}</SandButton>
           </div>
-          <small>{cliProxy.status == null ? "Loading status…" : cliProxy.status.configured ? cliProxy.status.isPersistent ? "Credential is encrypted by the operating system." : "Secure storage is unavailable; credential is held for this session only." : "Not configured."}</small>
-          {cliProxy.status?.probe ? <small role="status">{cliProxy.status.probe.message} ({cliProxy.status.probe.latencyMs} ms)</small> : null}
+          <small>{proxyGateway.status == null ? "Loading status…" : proxyGateway.status.configured ? proxyGateway.status.isPersistent ? "Credential is encrypted by the operating system." : "Secure storage is unavailable; credential is held for this session only." : "Not configured."}</small>
+          {proxyGateway.status?.probe ? <small role="status">{proxyGateway.status.probe.message} ({proxyGateway.status.probe.latencyMs} ms)</small> : null}
           {actionError && localWorkspace?.error == null ? <small aria-live="assertive" role="alert" style={{ color: "var(--cursor-error-foreground, #b42318)" }}>{actionError}</small> : null}
         </div>
       </SettingsGroup> : null}

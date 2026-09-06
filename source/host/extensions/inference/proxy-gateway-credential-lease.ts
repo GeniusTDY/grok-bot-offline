@@ -1,12 +1,12 @@
 import {
-  normalizeCliProxyTurnConfig,
-  type CliProxyTurnConfig,
-} from "../../../shared/cli-proxy.js";
+  normalizeProxyGatewayTurnConfig,
+  type ProxyGatewayTurnConfig,
+} from "../../../shared/proxy-gateway.js";
 
-export const CLI_PROXY_CREDENTIAL_LEASE_TTL_MS = 30 * 60 * 1_000;
+export const PROXY_GATEWAY_CREDENTIAL_LEASE_TTL_MS = 30 * 60 * 1_000;
 
 type InstalledLease = {
-  readonly config: CliProxyTurnConfig;
+  readonly config: ProxyGatewayTurnConfig;
   readonly expiresAtMs: number;
 };
 
@@ -30,37 +30,37 @@ function clearExpiredLease(nowMs: number): void {
  * desktop-to-host gateway. The API key is never persisted or exposed through a
  * getter on that gateway.
  */
-export function installCliProxyCredentialLease(
+export function installProxyGatewayCredentialLease(
   rawConfig: unknown,
   nowMs = Date.now(),
 ): { readonly expiresAtMs: number } {
-  const config = Object.freeze({ ...normalizeCliProxyTurnConfig(rawConfig) });
-  const expiresAtMs = nowMs + CLI_PROXY_CREDENTIAL_LEASE_TTL_MS;
+  const config = Object.freeze({ ...normalizeProxyGatewayTurnConfig(rawConfig) });
+  const expiresAtMs = nowMs + PROXY_GATEWAY_CREDENTIAL_LEASE_TTL_MS;
   installedLease = { config, expiresAtMs };
   clearExpiryTimer();
   expiryTimer = setTimeout(() => {
     if (installedLease?.expiresAtMs === expiresAtMs) installedLease = undefined;
     expiryTimer = undefined;
-  }, CLI_PROXY_CREDENTIAL_LEASE_TTL_MS);
+  }, PROXY_GATEWAY_CREDENTIAL_LEASE_TTL_MS);
   expiryTimer.unref?.();
   return { expiresAtMs };
 }
 
-export function hasCliProxyCredentialLease(nowMs = Date.now()): boolean {
+export function hasProxyGatewayCredentialLease(nowMs = Date.now()): boolean {
   clearExpiredLease(nowMs);
   return installedLease !== undefined;
 }
 
-export function requireCliProxyCredentialLease(nowMs = Date.now()): CliProxyTurnConfig {
+export function requireProxyGatewayCredentialLease(nowMs = Date.now()): ProxyGatewayTurnConfig {
   clearExpiredLease(nowMs);
   if (installedLease === undefined) {
-    throw new Error("9Router credential lease is unavailable. Reconnect it in Settings → Router.");
+    throw new Error("Proxy Gateway credential lease is unavailable. Reconnect it in Settings → Router.");
   }
   return installedLease.config;
 }
 
 /** Test/process-shutdown helper. It deliberately returns no prior credential. */
-export function clearCliProxyCredentialLease(): void {
+export function clearProxyGatewayCredentialLease(): void {
   installedLease = undefined;
   clearExpiryTimer();
 }

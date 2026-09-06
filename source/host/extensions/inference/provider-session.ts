@@ -18,9 +18,9 @@ import {
   streamOpenAiCompatibleModelStep,
   type OpenAiCompatibleTool,
 } from "./openai-compatible-stream.js";
-import type { CliProxyTurnConfig } from "../../../shared/cli-proxy.js";
+import type { ProxyGatewayTurnConfig } from "../../../shared/proxy-gateway.js";
 import type { LabelMessage, PromptExecutor } from "./sand-labeling.js";
-import { requireCliProxyCredentialLease } from "./cli-proxy-credential-lease.js";
+import { requireProxyGatewayCredentialLease } from "./proxy-gateway-credential-lease.js";
 
 type Loose = Record<string, any>;
 interface ProviderMessage extends LabelMessage { role: string; content: string | readonly unknown[] }
@@ -279,7 +279,7 @@ function openRouterExecutor(messages: readonly ProviderMessage[], invocationId: 
   return { fullStream: result.fullStream, response: result.response, usage: result.usage, extendedUsage, providerMetadata: result.providerMetadata, invocationId: Promise.resolve(invocationId) };
 }
 
-function cliProxyTools(definitions: readonly Loose[] | undefined): OpenAiCompatibleTool[] | undefined {
+function proxyGatewayTools(definitions: readonly Loose[] | undefined): OpenAiCompatibleTool[] | undefined {
   if (definitions == null || definitions.length === 0) return undefined;
   const tools = definitions.flatMap((source): OpenAiCompatibleTool[] => {
     const parameters = plainToolParameters(source);
@@ -288,12 +288,12 @@ function cliProxyTools(definitions: readonly Loose[] | undefined): OpenAiCompati
   return tools.length === 0 ? undefined : tools;
 }
 
-function cliProxyExecutor(config: CliProxyTurnConfig, messages: readonly ProviderMessage[], invocationId: string, definitions?: readonly Loose[], executeTool?: RoutedToolExecutor, onUsage?: (usage: UsageRecord) => void) {
+function proxyGatewayExecutor(config: ProxyGatewayTurnConfig, messages: readonly ProviderMessage[], invocationId: string, definitions?: readonly Loose[], executeTool?: RoutedToolExecutor, onUsage?: (usage: UsageRecord) => void) {
   const usage = deferred<{ promptTokens: number; completionTokens: number; totalTokens: number }>();
   const extendedUsage = deferred<{ inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; maxTokens: number }>();
   const resultResponse = deferred<ReturnType<typeof response>>();
   const metadata = deferred<Record<string, unknown>>();
-  const tools = cliProxyTools(definitions);
+  const tools = proxyGatewayTools(definitions);
   const fullStream = (async function* () {
     let text = "";
     try {
@@ -318,8 +318,8 @@ function cliProxyExecutor(config: CliProxyTurnConfig, messages: readonly Provide
   return { fullStream, response: resultResponse.promise, usage: usage.promise, extendedUsage: extendedUsage.promise, providerMetadata: metadata.promise, invocationId: Promise.resolve(invocationId) };
 }
 
-function cliProxyNativeExecutor(
-  config: CliProxyTurnConfig,
+function proxyGatewayNativeExecutor(
+  config: ProxyGatewayTurnConfig,
   messages: readonly ProviderMessage[],
   invocationId: string,
   definitions?: readonly Loose[],
@@ -330,7 +330,7 @@ function cliProxyNativeExecutor(
   const extendedUsage = deferred<{ inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; maxTokens: number }>();
   const resultResponse = deferred<Loose>();
   const metadata = deferred<Record<string, unknown>>();
-  const tools = cliProxyTools(definitions);
+  const tools = proxyGatewayTools(definitions);
   const fullStream = (async function* () {
     try {
       for await (const event of streamOpenAiCompatibleModelStep({
@@ -378,22 +378,22 @@ class ProviderPromptExecutor extends BasePromptExecutor<ProviderMessage> {
   stream(ctx: unknown, invocationId = crypto.randomUUID(), definitions?: readonly Loose[]) {
     if (this.provider === "codex") return codexExecutor(this.getMessages(), invocationId, definitions, undefined, this.onUsage);
     if (this.provider === "claude-code") return claudeExecutor(this.getMessages(), invocationId, this.onUsage);
-    if (this.provider === "cli-proxy") {
+    if (this.provider === "proxy-gateway") {
       // Re-check the short-lived lease before every native model step. The
       // executor deliberately does not retain a key across tool execution.
-      const cliProxyConfig = requireCliProxyCredentialLease();
+      const proxyGatewayConfig = requireProxyGatewayCredentialLease();
       const signal = typeof ctx === "object" && ctx != null && Reflect.get(ctx, "signal") instanceof AbortSignal
         ? Reflect.get(ctx, "signal") as AbortSignal
         : undefined;
-      return cliProxyNativeExecutor(cliProxyConfig, this.getMessages(), invocationId, definitions, signal, this.onUsage);
+      return proxyGatewayNativeExecutor(proxyGatewayConfig, this.getMessages(), invocationId, definitions, signal, this.onUsage);
     }
     return openRouterExecutor(this.getMessages(), invocationId, definitions, undefined, this.onUsage);
   }
 }
 
 export function createProviderPromptSession(provider: RoutedProvider): { getModelId(): string; getExecutor(state?: unknown): PromptExecutor } {
-  const cliProxyModel = provider === "cli-proxy" ? requireCliProxyCredentialLease().model : undefined;
-  const modelId = provider === "codex" ? configuredCodexModel() : provider === "claude-code" ? "claude-code" : provider === "cli-proxy" ? cliProxyModel! : process.env.SAND_OPENROUTER_MODEL?.trim() || "openai/gpt-5.2";
+  const proxyGatewayModel = provider === "proxy-gateway" ? requireProxyGatewayCredentialLease().model : undefined;
+  const modelId = provider === "codex" ? configuredCodexModel() : provider === "claude-code" ? "claude-code" : provider === "proxy-gateway" ? proxyGatewayModel! : process.env.SAND_OPENROUTER_MODEL?.trim() || "openai/gpt-5.2";
   return { getModelId: () => modelId, getExecutor: state => new ProviderPromptExecutor(provider, Array.isArray(state) ? state as ProviderMessage[] : undefined, usage => recordRoutedUsage(provider, usage)) };
 }
 
@@ -401,7 +401,7 @@ export async function runRoutedProviderText(provider: RoutedProvider, messages: 
   readonly mcpServerUrl?: string;
   readonly tools?: readonly Loose[];
   readonly executeTool?: RoutedToolExecutor;
-  readonly cliProxyConfig?: CliProxyTurnConfig;
+  readonly proxyGatewayConfig?: ProxyGatewayTurnConfig;
   readonly onTextDelta?: (delta: string, accumulated: string) => void;
 }): Promise<string> {
   const invocationId = crypto.randomUUID();
@@ -410,10 +410,10 @@ export async function runRoutedProviderText(provider: RoutedProvider, messages: 
     ? codexExecutor(messages, invocationId, options?.tools, options?.executeTool, onUsage)
     : provider === "claude-code"
       ? claudeExecutor(messages, invocationId, onUsage, options?.mcpServerUrl)
-      : provider === "cli-proxy"
-        ? options?.cliProxyConfig == null
-          ? (() => { throw new Error("9Router is not configured. Open Settings → Router."); })()
-          : cliProxyExecutor(options.cliProxyConfig, messages, invocationId, options?.tools, options?.executeTool, onUsage)
+      : provider === "proxy-gateway"
+        ? options?.proxyGatewayConfig == null
+          ? (() => { throw new Error("Proxy Gateway is not configured. Open Settings → Router."); })()
+          : proxyGatewayExecutor(options.proxyGatewayConfig, messages, invocationId, options?.tools, options?.executeTool, onUsage)
         : openRouterExecutor(messages, invocationId, options?.tools, options?.executeTool, onUsage);
   let text = "";
   for await (const event of result.fullStream) {

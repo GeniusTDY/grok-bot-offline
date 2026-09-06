@@ -5,7 +5,7 @@ import type {
 } from "../recovered/contracts/desktop-bridge";
 import { appLanguage } from "../locale/locale";
 
-export const LOCAL_9ROUTER_WORKSPACE_ID = "local:9router";
+export const LOCAL_PROXY_GATEWAY_WORKSPACE_ID = "local:proxy-gateway";
 export const LOCAL_WORKSPACE_CHANGED_EVENT = "sand-local-workspace-changed";
 
 export type LocalWorkspaceCheckId =
@@ -18,7 +18,7 @@ export type LocalWorkspaceCheckId =
   | "workspace-claim"
   | "coordinator-connected";
 export type LocalWorkspaceBlockerCode =
-  | "provider-not-9router"
+  | "provider-not-proxy-gateway"
   | "provider-status-unavailable"
   | "local-docker-not-selected"
   | "docker-status-unavailable"
@@ -46,12 +46,12 @@ export interface LocalWorkspaceBlocker {
 export type LocalWorkspaceReadiness =
   | { readonly kind: "checking" }
   | { readonly kind: "disabled"; readonly checks: readonly LocalWorkspaceCheck[]; readonly blockers: readonly LocalWorkspaceBlocker[] }
-  | { readonly kind: "ready"; readonly workspaceId: typeof LOCAL_9ROUTER_WORKSPACE_ID; readonly checks: readonly LocalWorkspaceCheck[] };
+  | { readonly kind: "ready"; readonly workspaceId: typeof LOCAL_PROXY_GATEWAY_WORKSPACE_ID; readonly checks: readonly LocalWorkspaceCheck[] };
 
 export type WorkspaceSession =
   | { readonly kind: "checking"; readonly accountSlot: null; readonly identity: null; readonly source: null }
   | { readonly kind: "unavailable"; readonly accountSlot: null; readonly identity: null; readonly source: null }
-  | { readonly kind: "ready"; readonly accountSlot: string; readonly identity: string; readonly source: "cursor" | "local-9router" };
+  | { readonly kind: "ready"; readonly accountSlot: string; readonly identity: string; readonly source: "cursor" | "local-proxy-gateway" };
 
 interface BoxRuntimeReader {
   getBoxRuntime(): Promise<unknown>;
@@ -158,15 +158,15 @@ function check(id: LocalWorkspaceCheckId, label: string, ready: boolean): LocalW
 export function localWorkspaceNextAction(readiness: LocalWorkspaceReadiness): string {
   const zh = appLanguage === "zh";
   if (readiness.kind === "checking") {
-    return zh ? "正在检查本地 9Router 工作区…" : "Checking your local 9Router workspace…";
+    return zh ? "正在检查本地 Proxy Gateway 工作区…" : "Checking your local Proxy Gateway workspace…";
   }
   if (readiness.kind === "ready") {
-    return zh ? "本地 9Router 已就绪，可以跳过登录继续使用。" : "Local 9Router is ready. Continue without signing in.";
+    return zh ? "本地 Proxy Gateway 已就绪，可以跳过登录继续使用。" : "Local Proxy Gateway is ready. Continue without signing in.";
   }
   return readiness.blockers[0]?.message
     ?? (zh
-      ? "请先完成本地 9Router 设置，再跳过登录继续使用。"
-      : "Finish the Local 9Router setup to continue without signing in.");
+      ? "请先完成本地 Proxy Gateway 设置，再跳过登录继续使用。"
+      : "Finish the Local Proxy Gateway setup to continue without signing in.");
 }
 
 export function localWorkspaceRemainingBlockerLabel(count: number): string {
@@ -176,7 +176,7 @@ export function localWorkspaceRemainingBlockerLabel(count: number): string {
 export function isLocalWorkspaceClaimReady(
   status: DesktopLocalWorkspaceStatus | null | undefined
 ): status is Extract<DesktopLocalWorkspaceStatus, { readonly kind: "ready" }> {
-  return status?.kind === "ready" && status.workspaceId === LOCAL_9ROUTER_WORKSPACE_ID;
+  return status?.kind === "ready" && status.workspaceId === LOCAL_PROXY_GATEWAY_WORKSPACE_ID;
 }
 
 export function localWorkspaceConfigurationReady(readiness: LocalWorkspaceReadiness): boolean {
@@ -202,7 +202,7 @@ export function reconcileSettingsLocalWorkspaceClaim(
  * state. Missing activation evidence deliberately fails closed.
  */
 export async function readLocalWorkspaceReadiness(
-  bridge: Pick<DesktopBridge, "agent" | "cliProxy">,
+  bridge: Pick<DesktopBridge, "agent" | "proxyGateway">,
   activation: LocalWorkspaceActivationState = { transportState: "down", claimStatus: null }
 ): Promise<LocalWorkspaceReadiness> {
   const agent = bridge.agent as typeof bridge.agent & BoxRuntimeReader;
@@ -213,12 +213,12 @@ export async function readLocalWorkspaceReadiness(
   const [routerResult, runtimeResult, credentialResult] = await Promise.allSettled([
     routerPromise,
     runtimePromise,
-    Promise.resolve().then(() => bridge.cliProxy.status())
+    Promise.resolve().then(() => bridge.proxyGateway.status())
   ]);
   const router = routerResult.status === "fulfilled" ? routerResult.value : null;
   const runtime = runtimeResult.status === "fulfilled" ? runtimeResult.value : null;
   const credential = credentialResult.status === "fulfilled" ? credentialResult.value : null;
-  const providerReady = routerResult.status === "fulfilled" && field(router, "provider") === "cli-proxy";
+  const providerReady = routerResult.status === "fulfilled" && field(router, "provider") === "proxy-gateway";
   const runtimeSelected = runtimeResult.status === "fulfilled" && field(runtime, "mode") === "local-docker";
   const dockerReady = runtimeSelected && field(field(runtime, "status"), "ready") === true;
   const credentialReady = credentialResult.status === "fulfilled" && field(credential, "configured") === true;
@@ -229,7 +229,7 @@ export async function readLocalWorkspaceReadiness(
   const workspaceClaimReady = isLocalWorkspaceClaimReady(activation.claimStatus);
   const coordinatorConnected = activation.transportState === "connected";
   const checks = [
-    check("provider", "OpenAI-compatible / 9Router selected", providerReady),
+    check("provider", "OpenAI-compatible / Proxy Gateway selected", providerReady),
     check("runtime", "Local Docker VM selected", runtimeSelected),
     check("docker-ready", "Local Docker VM ready", dockerReady),
     check("credential", "Proxy/client API key saved", credentialReady),
@@ -240,14 +240,14 @@ export async function readLocalWorkspaceReadiness(
   ];
   const blockers: LocalWorkspaceBlocker[] = [];
   if (routerResult.status === "rejected") blockers.push({ code: "provider-status-unavailable", checkId: "provider", message: "Could not read the routing provider. Reopen Router settings and retry.", detail: rejectedDetail(routerResult) });
-  else if (!providerReady) blockers.push({ code: "provider-not-9router", checkId: "provider", message: "Select OpenAI-compatible / 9Router as the provider." });
+  else if (!providerReady) blockers.push({ code: "provider-not-proxy-gateway", checkId: "provider", message: "Select OpenAI-compatible / Proxy Gateway as the provider." });
   if (runtimeResult.status === "rejected") blockers.push({ code: "docker-status-unavailable", checkId: "runtime", message: "Could not read Docker status. Start Docker Desktop and retry.", detail: rejectedDetail(runtimeResult) });
   else if (!runtimeSelected) blockers.push({ code: "local-docker-not-selected", checkId: "runtime", message: "Turn on Use local Docker VM." });
   else if (!dockerReady) blockers.push({ code: "local-docker-not-ready", checkId: "docker-ready", message: "Local Docker is not ready. Start Docker Desktop, then choose Repair Local Docker VM." });
-  if (credentialResult.status === "rejected") blockers.push({ code: "credential-status-unavailable", checkId: "credential", message: "Could not read the saved 9Router credential. Reopen Router settings and retry.", detail: rejectedDetail(credentialResult) });
+  if (credentialResult.status === "rejected") blockers.push({ code: "credential-status-unavailable", checkId: "credential", message: "Could not read the saved Proxy Gateway credential. Reopen Router settings and retry.", detail: rejectedDetail(credentialResult) });
   else {
-    if (!credentialReady) blockers.push({ code: "credential-missing", checkId: "credential", message: "Enter and save the 9Router proxy/client API key." });
-    if (!modelReady) blockers.push({ code: "model-missing", checkId: "model", message: "Choose a model and save 9Router again." });
+    if (!credentialReady) blockers.push({ code: "credential-missing", checkId: "credential", message: "Enter and save the Proxy Gateway proxy/client API key." });
+    if (!modelReady) blockers.push({ code: "model-missing", checkId: "model", message: "Choose a model and save Proxy Gateway again." });
     if (!protocolReady) blockers.push({ code: "protocol-unsupported", checkId: "protocol", message: "Choose Chat Completions or Auto for native agent tools." });
   }
   if (!workspaceClaimReady) blockers.push({
@@ -258,10 +258,10 @@ export async function readLocalWorkspaceReadiness(
   if (!coordinatorConnected) blockers.push({
     code: "coordinator-not-connected",
     checkId: "coordinator-connected",
-    message: "The Local 9Router coordinator is not connected. Retry Save & continue without signing in."
+    message: "The Local Proxy Gateway coordinator is not connected. Retry Save & continue without signing in."
   });
   return blockers.length === 0
-    ? { kind: "ready", workspaceId: LOCAL_9ROUTER_WORKSPACE_ID, checks }
+    ? { kind: "ready", workspaceId: LOCAL_PROXY_GATEWAY_WORKSPACE_ID, checks }
     : { kind: "disabled", checks, blockers };
 }
 
@@ -289,7 +289,7 @@ export function projectWorkspaceSession(
       kind: "ready",
       accountSlot: localWorkspace.workspaceId,
       identity: localWorkspace.workspaceId,
-      source: "local-9router"
+      source: "local-proxy-gateway"
     };
   }
   return { kind: "unavailable", accountSlot: null, identity: null, source: null };

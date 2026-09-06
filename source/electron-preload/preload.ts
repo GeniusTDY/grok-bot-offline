@@ -1,5 +1,5 @@
 import { CLIENT_PERSISTENCE_CHANNELS } from "../shared/persistence.js";
-import { CLI_PROXY_PERSISTED_CHANNEL } from "../shared/cli-proxy.js";
+import { PROXY_GATEWAY_PERSISTED_CHANNEL } from "../shared/proxy-gateway.js";
 import {
   createCoordinatorPortBroker,
   wrapTransferredCoordinatorPort,
@@ -110,10 +110,10 @@ export function createDesktopPreloadBridge(options: {
   const edge = (method: string, ...args: any[]): any => mainEdge[method]!(...args);
   const subscribe = (event: string, listener: (payload: any) => void): (() => void) => mainEdge.subscribe({ [event]: listener });
   const initialState = options.initialState ?? readPrimaryPreloadInitialState(ipc);
-  let cliProxyPersistenceSequence = 0;
-  const saveCliProxy = (config: unknown, onCredentialPersisted?: () => void): Promise<any> => {
-    if (typeof onCredentialPersisted !== "function") return ipc.invoke("sand:cli-proxy-save", config);
-    const requestId = `${Date.now().toString(36)}_${(++cliProxyPersistenceSequence).toString(36)}`;
+  let proxyGatewayPersistenceSequence = 0;
+  const saveProxyGateway = (config: unknown, onCredentialPersisted?: () => void): Promise<any> => {
+    if (typeof onCredentialPersisted !== "function") return ipc.invoke("sand:proxy-gateway-save", config);
+    const requestId = `${Date.now().toString(36)}_${(++proxyGatewayPersistenceSequence).toString(36)}`;
     const request = {
       ...(typeof config === "object" && config != null && !Array.isArray(config)
         ? config as Record<string, unknown>
@@ -130,7 +130,7 @@ export function createDesktopPreloadBridge(options: {
       }
       if (!listenerAttached) return;
       listenerAttached = false;
-      ipc.off(CLI_PROXY_PERSISTED_CHANNEL, listener);
+      ipc.off(PROXY_GATEWAY_PERSISTED_CHANNEL, listener);
     };
     const acknowledge = (): void => {
       if (notified) return;
@@ -147,11 +147,11 @@ export function createDesktopPreloadBridge(options: {
       ) return;
       acknowledge();
     };
-    ipc.on(CLI_PROXY_PERSISTED_CHANNEL, listener);
+    ipc.on(PROXY_GATEWAY_PERSISTED_CHANNEL, listener);
     listenerAttached = true;
     let invoked: Promise<any>;
     try {
-      invoked = ipc.invoke("sand:cli-proxy-save", request);
+      invoked = ipc.invoke("sand:proxy-gateway-save", request);
     } catch (error) {
       detach();
       throw error;
@@ -317,10 +317,10 @@ export function createDesktopPreloadBridge(options: {
       upsert: (entries: Record<string, string>) => ipc.invoke("sand:secrets-upsert", { entries }),
       remove: (keys: readonly string[]) => ipc.invoke("sand:secrets-delete", { keys }),
     },
-    cliProxy: {
-      status: (options?: { readonly testConnection?: boolean }) => ipc.invoke("sand:cli-proxy-status", options ?? {}),
-      save: saveCliProxy,
-      remove: () => ipc.invoke("sand:cli-proxy-delete"),
+    proxyGateway: {
+      status: (options?: { readonly testConnection?: boolean }) => ipc.invoke("sand:proxy-gateway-status", options ?? {}),
+      save: saveProxyGateway,
+      remove: () => ipc.invoke("sand:proxy-gateway-delete"),
     },
     agent: {
       getPinnedAgents: () => edge("getHostPinnedAgents"),

@@ -7,7 +7,7 @@ import type { SandBoxRuntime } from "../shared/box-runtime.js";
 import type { SandInferenceProvider } from "../shared/inference-router.js";
 import { SandSettingsStore } from "../shared/node/settings/sand-settings-store.js";
 import { createRoutedMcpBridge } from "./routed-mcp-bridge.js";
-import { normalizeCliProxyTurnConfig } from "../shared/cli-proxy.js";
+import { normalizeProxyGatewayTurnConfig } from "../shared/proxy-gateway.js";
 
 type StoredEntry = {
   readonly provider: Exclude<SandInferenceProvider, "cursor">;
@@ -36,7 +36,7 @@ export function parseInferenceRouterTranscriptStore(value: unknown): Store {
     const entries: StoredEntry[] = [];
     for (const raw of rawEntries) {
       const row = asRecord(raw);
-      if (row == null || !["codex", "claude-code", "openrouter", "cli-proxy"].includes(String(row.provider)) || !["user", "assistant"].includes(String(row.role)) || typeof row.content !== "string" || typeof row.id !== "string" || typeof row.timestampMs !== "number" || (row.clientNonce !== undefined && typeof row.clientNonce !== "string") || (row.richText !== undefined && typeof row.richText !== "string")) continue;
+      if (row == null || !["codex", "claude-code", "openrouter", "proxy-gateway"].includes(String(row.provider)) || !["user", "assistant"].includes(String(row.role)) || typeof row.content !== "string" || typeof row.id !== "string" || typeof row.timestampMs !== "number" || (row.clientNonce !== undefined && typeof row.clientNonce !== "string") || (row.richText !== undefined && typeof row.richText !== "string")) continue;
       if (row.reactions !== undefined && (!Array.isArray(row.reactions) || row.reactions.some(reaction => asRecord(reaction) == null || typeof asRecord(reaction)!.emoji !== "string" || typeof asRecord(reaction)!.by !== "string"))) continue;
       entries.push(row as unknown as StoredEntry);
     }
@@ -51,8 +51,8 @@ export function projectInferenceRouterTranscriptEntry(entry: StoredEntry): Recor
     : { kind: "send-message", id: entry.id, message: { type: "text", content: entry.content }, timestampMs: entry.timestampMs, ...(entry.reactions === undefined ? {} : { reactions: entry.reactions }) };
 }
 
-export function shouldUseNativeCliProxyHost(provider: SandInferenceProvider, boxRuntime: SandBoxRuntime): boolean {
-  return provider === "cli-proxy" && boxRuntime === "local-docker";
+export function shouldUseNativeProxyGatewayHost(provider: SandInferenceProvider, boxRuntime: SandBoxRuntime): boolean {
+  return provider === "proxy-gateway" && boxRuntime === "local-docker";
 }
 
 export function createCoordinatorInferenceRouter(options: {
@@ -165,17 +165,17 @@ export function createCoordinatorInferenceRouter(options: {
       emitTranscript(agentId, assistantStreamStarted ? "updated" : "appended", entry);
       assistantStreamStarted = true;
     };
-    const cliProxyConfig = provider === "cli-proxy" ? normalizeCliProxyTurnConfig(await options.dispatchRemote("getCliProxyTurnConfig", {})) : undefined;
-    const cliProxyToolsEnabled = provider !== "cli-proxy" || process.env.SAND_9ROUTER_ENABLE_UNREVIEWED_MCP_TOOLS === "1";
+    const proxyGatewayConfig = provider === "proxy-gateway" ? normalizeProxyGatewayTurnConfig(await options.dispatchRemote("getProxyGatewayTurnConfig", {})) : undefined;
+    const proxyGatewayToolsEnabled = provider !== "proxy-gateway" || process.env.SAND_PROXY_GATEWAY_ENABLE_UNREVIEWED_MCP_TOOLS === "1";
     const bridge = provider === "claude-code" ? await createRoutedMcpBridge({
       listTools: () => options.dispatchRemote("listRoutedMcpTools", {}),
       callTool: tool => options.dispatchRemote("executeRoutedMcpTool", { ...tool, agentId }),
     }) : null;
-    const directTools = bridge == null && cliProxyToolsEnabled ? await options.dispatchRemote("listRoutedMcpTools", {}) : undefined;
+    const directTools = bridge == null && proxyGatewayToolsEnabled ? await options.dispatchRemote("listRoutedMcpTools", {}) : undefined;
     const tools = Array.isArray(directTools) ? directTools as Record<string, any>[] : undefined;
     const onTextDelta = (_delta: string, accumulated: string) => emitAssistant(accumulated, true);
     try { content = await runRoutedProviderText(provider, messages, bridge == null ? {
-      ...(cliProxyConfig === undefined ? {} : { cliProxyConfig }),
+      ...(proxyGatewayConfig === undefined ? {} : { proxyGatewayConfig }),
       ...(tools === undefined ? {} : { tools }),
       executeTool: async (definition, toolArgs, toolCallId) => await options.dispatchRemote("executeRoutedMcpTool", {
         providerIdentifier: definition.providerIdentifier,
@@ -197,8 +197,8 @@ export function createCoordinatorInferenceRouter(options: {
     provider(): SandInferenceProvider { return settings.getInferenceProvider(); },
     async dispatch(method: string, args: unknown): Promise<{ handled: boolean; value?: unknown }> {
       const provider = settings.getInferenceProvider();
-      const usesNativeCliProxyHost = shouldUseNativeCliProxyHost(provider, settings.getBoxRuntime());
-      if (!usesNativeCliProxyHost && method === "reactToMessage") {
+      const usesNativeProxyGatewayHost = shouldUseNativeProxyGatewayHost(provider, settings.getBoxRuntime());
+      if (!usesNativeProxyGatewayHost && method === "reactToMessage") {
         const record = asRecord(args) ?? {};
         const agentId = typeof record.agentId === "string" ? record.agentId : "";
         const entryId = typeof record.entryId === "string" ? record.entryId : "";
@@ -209,7 +209,7 @@ export function createCoordinatorInferenceRouter(options: {
           return { handled: true, value: undefined };
         }
       }
-      if (!usesNativeCliProxyHost && provider !== "cursor" && ["getAgentTranscriptTail", "openAgentTail", "getAgentTranscriptWindow"].includes(method)) {
+      if (!usesNativeProxyGatewayHost && provider !== "cursor" && ["getAgentTranscriptTail", "openAgentTail", "getAgentTranscriptWindow"].includes(method)) {
         const record = asRecord(args) ?? {};
         const agentId = typeof record.id === "string" ? record.id : "";
         const [remote, local] = await Promise.all([options.dispatchRemote(method, args), load()]);
@@ -220,11 +220,11 @@ export function createCoordinatorInferenceRouter(options: {
         return { handled: true, value: { ...result, entries: entries.slice(-limit) } };
       }
       if (method !== "sendPrompt" || provider === "cursor") return { handled: false };
-      if (usesNativeCliProxyHost) {
+      if (usesNativeProxyGatewayHost) {
         // Electron main serializes the complete host resync and memory-only
         // credential lease with provider/key transitions. The native host may
         // receive sendPrompt only after that fail-closed preparation succeeds.
-        await options.dispatchRemote("prepareCliProxyNativeTurn", {});
+        await options.dispatchRemote("prepareProxyGatewayNativeTurn", {});
         return { handled: false };
       }
       const record = asRecord(args) ?? {};

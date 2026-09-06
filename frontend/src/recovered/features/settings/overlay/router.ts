@@ -1,6 +1,6 @@
 import type { AgentDesktopBridge } from "../../../contracts/desktop-bridge";
 
-export type RouterProviderId = "cursor" | "claude-code" | "codex" | "openrouter" | "cli-proxy";
+export type RouterProviderId = "cursor" | "claude-code" | "codex" | "openrouter" | "proxy-gateway";
 
 export interface RouterProvider {
   readonly id: RouterProviderId;
@@ -43,10 +43,10 @@ export const ROUTER_PROVIDERS: readonly RouterProvider[] = [
     usageSource: "external"
   },
   {
-    id: "cli-proxy",
-    label: "OpenAI-compatible / 9Router",
-    description: "Use a local 9Router or another reviewed OpenAI-compatible endpoint.",
-    usageDescription: "Usage and billing are managed by 9Router and its upstream provider.",
+    id: "proxy-gateway",
+    label: "OpenAI-compatible / Proxy Gateway",
+    description: "Use a local Proxy Gateway or another reviewed OpenAI-compatible endpoint.",
+    usageDescription: "Usage and billing are managed by Proxy Gateway and its upstream provider.",
     usageSource: "external"
   }
 ];
@@ -66,7 +66,7 @@ export function routerProviderById(id: RouterProviderId): RouterProvider {
  * helper independent from the stricter main-process validator lets the form
  * fail closed while the user is midway through editing an address.
  */
-export function cliProxyDraftOrigin(raw: string): string | null {
+export function proxyGatewayDraftOrigin(raw: string): string | null {
   try {
     const parsed = new URL(raw.trim());
     return parsed.username.length === 0 && parsed.password.length === 0
@@ -78,16 +78,16 @@ export function cliProxyDraftOrigin(raw: string): string | null {
 }
 
 /** A credential typed for one origin must never survive a draft-origin edit. */
-export function shouldClearCliProxyApiKeyDraft(
+export function shouldClearProxyGatewayApiKeyDraft(
   apiKey: string,
   keyOrigin: string | null,
   nextBaseUrl: string,
 ): boolean {
   return apiKey.trim().length > 0
-    && (keyOrigin == null || cliProxyDraftOrigin(nextBaseUrl) !== keyOrigin);
+    && (keyOrigin == null || proxyGatewayDraftOrigin(nextBaseUrl) !== keyOrigin);
 }
 
-export interface CliProxyApiKeyDraftIdentity {
+export interface ProxyGatewayApiKeyDraftIdentity {
   readonly revision: number;
   readonly origin: string | null;
 }
@@ -97,9 +97,9 @@ export interface CliProxyApiKeyDraftIdentity {
  * A late acknowledgement must never erase a replacement key or a key now bound
  * to a different endpoint origin.
  */
-export function createCliProxyApiKeyPersistenceGuard(
-  submitted: CliProxyApiKeyDraftIdentity,
-  current: () => CliProxyApiKeyDraftIdentity,
+export function createProxyGatewayApiKeyPersistenceGuard(
+  submitted: ProxyGatewayApiKeyDraftIdentity,
+  current: () => ProxyGatewayApiKeyDraftIdentity,
   clear: () => void,
 ): () => void {
   let applied = false;

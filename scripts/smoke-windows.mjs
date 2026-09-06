@@ -218,7 +218,7 @@ async function stopPortableGracefully(launched, { label, leaseRevoked = () => tr
         if (launched.child.signalCode != null || launched.child.exitCode !== 0) {
           throw new Error(`the packaged process did not exit cleanly (code=${launched.child.exitCode}, signal=${launched.child.signalCode})`);
         }
-        if (!leaseRevoked()) throw new Error("the process exited before its final 9Router credential lease revocation was acknowledged");
+        if (!leaseRevoked()) throw new Error("the process exited before its final Proxy Gateway credential lease revocation was acknowledged");
         const processState = await settleExitedPortableProcess(launched);
         launched.cdp.close();
         return processState;
@@ -287,13 +287,13 @@ async function launchPortable(verified, environment, userDataDir, logs, onLaunch
 async function openRouterSettings(cdp) {
   return await waitForRendererState(
     cdp,
-    `(() => { const visible = node => node.isConnected && node.getClientRects().length > 0 && !node.disabled; const candidates = [...document.querySelectorAll('button,[role="button"]')]; const configure = candidates.find(node => visible(node) && (/^configure 9router$/i.test((node.textContent ?? '').trim()) || /^configure 9router$/i.test(node.getAttribute('aria-label') ?? ''))); configure?.click(); return { clicked: configure != null, controls: candidates.filter(visible).map(node => [node.textContent?.trim(), node.getAttribute('aria-label')].filter(Boolean).join(' | ')).filter(Boolean).slice(0, 60) }; })()`,
+    `(() => { const visible = node => node.isConnected && node.getClientRects().length > 0 && !node.disabled; const candidates = [...document.querySelectorAll('button,[role="button"]')]; const configure = candidates.find(node => visible(node) && (/^configure proxy-gateway$/i.test((node.textContent ?? '').trim()) || /^configure proxy-gateway$/i.test(node.getAttribute('aria-label') ?? ''))); configure?.click(); return { clicked: configure != null, controls: candidates.filter(visible).map(node => [node.textContent?.trim(), node.getAttribute('aria-label')].filter(Boolean).join(' | ')).filter(Boolean).slice(0, 60) }; })()`,
     value => value?.clicked === true,
-    "Fresh isolated profile did not expose the credential-independent 9Router setup",
+    "Fresh isolated profile did not expose the credential-independent Proxy Gateway setup",
   );
 }
 
-async function select9RouterProvider(cdp) {
+async function selectProxyGatewayProvider(cdp) {
   await waitForRendererState(
     cdp,
     `(() => { const visible = node => node.isConnected && node.getClientRects().length > 0 && !node.disabled; const candidates = [...document.querySelectorAll('[aria-label],button,[role="button"]')]; const provider = candidates.find(node => visible(node) && /^router provider$/i.test(node.getAttribute('aria-label') ?? '')); provider?.click(); return { clicked: provider != null, controls: candidates.filter(visible).map(node => [node.textContent?.trim(), node.getAttribute('aria-label')].filter(Boolean).join(' | ')).filter(Boolean).slice(0, 60) }; })()`,
@@ -302,15 +302,15 @@ async function select9RouterProvider(cdp) {
   );
   await waitForRendererState(
     cdp,
-    `(() => { const visible = node => node.isConnected && node.getClientRects().length > 0 && !node.disabled; const candidates = [...document.querySelectorAll('button,[role="option"],[role="menuitem"],[role="radio"]')]; const option = candidates.find(node => visible(node) && (node.textContent ?? '').trim().toLowerCase() === 'openai-compatible / 9router'); option?.click(); return { clicked: option != null, controls: candidates.filter(visible).map(node => [node.textContent?.trim(), node.getAttribute('aria-label')].filter(Boolean).join(' | ')).filter(Boolean).slice(0, 60) }; })()`,
+    `(() => { const visible = node => node.isConnected && node.getClientRects().length > 0 && !node.disabled; const candidates = [...document.querySelectorAll('button,[role="option"],[role="menuitem"],[role="radio"]')]; const option = candidates.find(node => visible(node) && (node.textContent ?? '').trim().toLowerCase() === 'openai-compatible / proxy-gateway'); option?.click(); return { clicked: option != null, controls: candidates.filter(visible).map(node => [node.textContent?.trim(), node.getAttribute('aria-label')].filter(Boolean).join(' | ')).filter(Boolean).slice(0, 60) }; })()`,
     value => value?.clicked === true,
-    "Router provider selector did not expose the 9Router option",
+    "Router provider selector did not expose the Proxy Gateway option",
   );
   await waitForRendererState(
     cdp,
-    `(async () => { const input = document.querySelector('input[aria-label="9Router Base URL"]'); const state = await window.desktop.agent.getInferenceRouter(); return { provider: state?.provider ?? null, hasEditableBaseUrl: input instanceof HTMLInputElement && !input.disabled && !input.readOnly, baseUrl: input instanceof HTMLInputElement ? input.value : null, text: document.body?.innerText ?? "" }; })()`,
-    value => value?.provider === "cli-proxy" && value.hasEditableBaseUrl === true && /9Router connection/i.test(value.text ?? ""),
-    "Fresh isolated profile cannot select 9Router or edit its Base URL",
+    `(async () => { const input = document.querySelector('input[aria-label="Proxy Gateway Base URL"]'); const state = await window.desktop.agent.getInferenceRouter(); return { provider: state?.provider ?? null, hasEditableBaseUrl: input instanceof HTMLInputElement && !input.disabled && !input.readOnly, baseUrl: input instanceof HTMLInputElement ? input.value : null, text: document.body?.innerText ?? "" }; })()`,
+    value => value?.provider === "proxy-gateway" && value.hasEditableBaseUrl === true && /Proxy Gateway connection/i.test(value.text ?? ""),
+    "Fresh isolated profile cannot select Proxy Gateway or edit its Base URL",
   );
 }
 
@@ -357,7 +357,7 @@ async function closeSettings(cdp) {
 async function assertSignedOutLanding(cdp, label) {
   return await waitForRendererState(
     cdp,
-    `(async () => { const visible = node => node != null && node.isConnected && node.getClientRects().length > 0; const auth = await window.desktop.cursorAccount.getStatus(); const landing = document.querySelector('[role="main"][aria-label="Grok Bot"]'); const configure = document.querySelector('button[aria-label="Configure 9Router"]'); return { authKind: auth?.kind ?? null, landing: visible(landing), configure: visible(configure) }; })()`,
+    `(async () => { const visible = node => node != null && node.isConnected && node.getClientRects().length > 0; const auth = await window.desktop.cursorAccount.getStatus(); const landing = document.querySelector('[role="main"][aria-label="Grok Bot"]'); const configure = document.querySelector('button[aria-label="Configure Proxy Gateway"]'); return { authKind: auth?.kind ?? null, landing: visible(landing), configure: visible(configure) }; })()`,
     value => value?.authKind === "logged-out" && value.landing === true && value.configure === true,
     label,
   );
@@ -370,10 +370,10 @@ async function assertLoginFreeWorkspace(cdp, expectedBaseUrl, { probe = false } 
       window.desktop.cursorAccount.getStatus(),
       window.desktop.agent.getInferenceRouter(),
       window.desktop.agent.getBoxRuntime(),
-      window.desktop.cliProxy.status(${probe ? "{ testConnection: true }" : ""}),
+      window.desktop.proxyGateway.status(${probe ? "{ testConnection: true }" : ""}),
     ]);
     const landing = document.querySelector('[role="main"][aria-label="Grok Bot"]');
-    const configure = document.querySelector('button[aria-label="Configure 9Router"]');
+    const configure = document.querySelector('button[aria-label="Configure Proxy Gateway"]');
     const create = document.querySelector('button[aria-label="New"]');
     const connected = document.querySelector('[role="status"][aria-label="Connected"]');
     const emptyWorkspace = document.querySelector('main[aria-label="New chat"]');
@@ -401,7 +401,7 @@ async function assertLoginFreeWorkspace(cdp, expectedBaseUrl, { probe = false } 
     cdp,
     expression,
     value => value?.authKind === "logged-out"
-      && value.provider === "cli-proxy"
+      && value.provider === "proxy-gateway"
       && value.runtimeMode === "local-docker"
       && value.runtimeReady === true
       && value.configured === true
@@ -415,8 +415,8 @@ async function assertLoginFreeWorkspace(cdp, expectedBaseUrl, { probe = false } 
       && value.create === true
       && value.connected === true
       && value.emptyWorkspace === true
-      && value.workspace === "local-9router",
-    probe ? "Persisted 9Router credential could not be decrypted or the login-free workspace did not reopen" : "Completed 9Router setup did not unlock the login-free workspace",
+      && value.workspace === "local-proxy-gateway",
+    probe ? "Persisted Proxy Gateway credential could not be decrypted or the login-free workspace did not reopen" : "Completed Proxy Gateway setup did not unlock the login-free workspace",
     60_000,
   );
 }
@@ -546,12 +546,12 @@ export async function startHarnessServers(secretCanary, { gatewayPort = 1340 } =
     webauthnHelloProviders: [],
     activeWebauthnStreams: 0,
     activeLocalExecStreams: 0,
-    holdNextCliProxyProbe: false,
-    cliProxyProbeHeld: false,
-    releaseHeldCliProxyProbe: null,
-    cliProxyLeaseActive: false,
-    cliProxyLeaseInstalls: 0,
-    cliProxyModelProbes: 0,
+    holdNextProxyGatewayProbe: false,
+    proxyGatewayProbeHeld: false,
+    releaseHeldProxyGatewayProbe: null,
+    proxyGatewayLeaseActive: false,
+    proxyGatewayLeaseInstalls: 0,
+    proxyGatewayModelProbes: 0,
   };
   const webauthnProviderIds = new Set();
   const localExecProviderIds = new Set();
@@ -563,13 +563,13 @@ export async function startHarnessServers(secretCanary, { gatewayPort = 1340 } =
   const matchedLocalExecProviderIds = new Set();
   const webauthnHelloFingerprints = new Map();
   const localExecHelloFingerprints = new Map();
-  let cliProxyLease;
-  let cliProxyLeaseExpiryTimer;
-  const clearHarnessCliProxyLease = () => {
-    if (cliProxyLeaseExpiryTimer != null) clearTimeout(cliProxyLeaseExpiryTimer);
-    cliProxyLeaseExpiryTimer = undefined;
-    cliProxyLease = undefined;
-    gatewayState.cliProxyLeaseActive = false;
+  let proxyGatewayLease;
+  let proxyGatewayLeaseExpiryTimer;
+  const clearHarnessProxyGatewayLease = () => {
+    if (proxyGatewayLeaseExpiryTimer != null) clearTimeout(proxyGatewayLeaseExpiryTimer);
+    proxyGatewayLeaseExpiryTimer = undefined;
+    proxyGatewayLease = undefined;
+    gatewayState.proxyGatewayLeaseActive = false;
   };
   const handleGatewayRequest = async (request, response) => {
     if (request.method === "GET" && request.url === "/health") {
@@ -775,12 +775,12 @@ export async function startHarnessServers(secretCanary, { gatewayPort = 1340 } =
       const args = await readJsonRequest(request);
       if (command === "setHostSettings") {
         if (typeof args !== "object" || args == null || Array.isArray(args)) throw new Error("setHostSettings needs an object");
-        audit.clearedCliProxyLease = args.clearCliProxyCredentialLease === true;
-        if (audit.clearedCliProxyLease || (args.inferenceProvider !== undefined && args.inferenceProvider !== "cli-proxy")) {
-          clearHarnessCliProxyLease();
+        audit.clearedProxyGatewayLease = args.clearProxyGatewayCredentialLease === true;
+        if (audit.clearedProxyGatewayLease || (args.inferenceProvider !== undefined && args.inferenceProvider !== "proxy-gateway")) {
+          clearHarnessProxyGatewayLease();
         }
         const hostSettingsUpdate = { ...args };
-        delete hostSettingsUpdate.clearCliProxyCredentialLease;
+        delete hostSettingsUpdate.clearProxyGatewayCredentialLease;
         gatewayState.hostSettings = { ...gatewayState.hostSettings, ...hostSettingsUpdate };
         writeJson(response, 200, gatewayState.hostSettings);
         return;
@@ -821,7 +821,7 @@ export async function startHarnessServers(secretCanary, { gatewayPort = 1340 } =
         writeJson(response, 200, { ok: true });
         return;
       }
-      if (command === "leaseCliProxyCredential") {
+      if (command === "leaseProxyGatewayCredential") {
         if (
           typeof args !== "object"
           || args == null
@@ -829,7 +829,7 @@ export async function startHarnessServers(secretCanary, { gatewayPort = 1340 } =
           || Object.keys(args).length !== 1
           || !("config" in args)
         ) {
-          throw new Error("leaseCliProxyCredential needs exactly one config object");
+          throw new Error("leaseProxyGatewayCredential needs exactly one config object");
         }
         const config = args.config;
         const configKeys = typeof config === "object" && config != null && !Array.isArray(config)
@@ -846,52 +846,52 @@ export async function startHarnessServers(secretCanary, { gatewayPort = 1340 } =
           || config.allowTailscaleHttp !== false
           || config.apiKey !== secretCanary
         ) {
-          throw new Error("leaseCliProxyCredential received an invalid 9Router turn config");
+          throw new Error("leaseProxyGatewayCredential received an invalid Proxy Gateway turn config");
         }
-        clearHarnessCliProxyLease();
-        gatewayState.cliProxyLeaseInstalls += 1;
+        clearHarnessProxyGatewayLease();
+        gatewayState.proxyGatewayLeaseInstalls += 1;
         const expiresAtMs = Date.now() + 30 * 60_000;
-        const generation = gatewayState.cliProxyLeaseInstalls;
-        cliProxyLease = {
+        const generation = gatewayState.proxyGatewayLeaseInstalls;
+        proxyGatewayLease = {
           config: Object.freeze({ ...config }),
           expiresAtMs,
           generation,
         };
-        cliProxyLeaseExpiryTimer = setTimeout(() => {
-          if (cliProxyLease?.generation === generation) clearHarnessCliProxyLease();
+        proxyGatewayLeaseExpiryTimer = setTimeout(() => {
+          if (proxyGatewayLease?.generation === generation) clearHarnessProxyGatewayLease();
         }, 30 * 60_000);
-        cliProxyLeaseExpiryTimer.unref?.();
-        gatewayState.cliProxyLeaseActive = true;
-        audit.cliProxyLeaseValidated = true;
-        audit.cliProxyLeaseInstall = gatewayState.cliProxyLeaseInstalls;
+        proxyGatewayLeaseExpiryTimer.unref?.();
+        gatewayState.proxyGatewayLeaseActive = true;
+        audit.proxyGatewayLeaseValidated = true;
+        audit.proxyGatewayLeaseInstall = gatewayState.proxyGatewayLeaseInstalls;
         writeJson(response, 200, { expiresAtMs });
         return;
       }
-      if (command === "probeCliProxyModels") {
+      if (command === "probeProxyGatewayModels") {
         if (typeof args !== "object" || args == null || Array.isArray(args) || Object.keys(args).length !== 0) {
-          throw new Error("probeCliProxyModels must not receive config or credentials");
+          throw new Error("probeProxyGatewayModels must not receive config or credentials");
         }
-        const lease = cliProxyLease;
+        const lease = proxyGatewayLease;
         if (lease == null || lease.expiresAtMs <= Date.now()) {
-          clearHarnessCliProxyLease();
-          throw new Error("probeCliProxyModels requires an active credential lease");
+          clearHarnessProxyGatewayLease();
+          throw new Error("probeProxyGatewayModels requires an active credential lease");
         }
-        if (gatewayState.holdNextCliProxyProbe) {
-          gatewayState.holdNextCliProxyProbe = false;
-          gatewayState.cliProxyProbeHeld = true;
-          audit.cliProxyProbeHeld = true;
+        if (gatewayState.holdNextProxyGatewayProbe) {
+          gatewayState.holdNextProxyGatewayProbe = false;
+          gatewayState.proxyGatewayProbeHeld = true;
+          audit.proxyGatewayProbeHeld = true;
           await new Promise(resolve => {
             const safety = setTimeout(resolve, 30_000);
             safety.unref?.();
-            gatewayState.releaseHeldCliProxyProbe = () => {
+            gatewayState.releaseHeldProxyGatewayProbe = () => {
               clearTimeout(safety);
               resolve();
             };
           });
-          gatewayState.cliProxyProbeHeld = false;
-          gatewayState.releaseHeldCliProxyProbe = null;
-          if (cliProxyLease?.generation !== lease.generation || lease.expiresAtMs <= Date.now()) {
-            throw new Error("held 9Router model probe lease was superseded");
+          gatewayState.proxyGatewayProbeHeld = false;
+          gatewayState.releaseHeldProxyGatewayProbe = null;
+          if (proxyGatewayLease?.generation !== lease.generation || lease.expiresAtMs <= Date.now()) {
+            throw new Error("held Proxy Gateway model probe lease was superseded");
           }
         }
         const probeStartedAtMs = Date.now();
@@ -901,19 +901,19 @@ export async function startHarnessServers(secretCanary, { gatewayPort = 1340 } =
             accept: "application/json",
             authorization: `Bearer ${lease.config.apiKey}`,
             connection: "close",
-            "user-agent": "grok-bot-9router/1",
+            "user-agent": "grok-bot-proxy-gateway/1",
           },
           redirect: "error",
           signal: AbortSignal.timeout(5_000),
         });
-        if (!probeResponse.ok) throw new Error("leased 9Router model probe was not authorized");
+        if (!probeResponse.ok) throw new Error("leased Proxy Gateway model probe was not authorized");
         const probeDocument = await probeResponse.json();
         const probeModels = Array.isArray(probeDocument?.data)
           ? probeDocument.data.map(item => item?.id).filter(id => typeof id === "string" && id.length > 0)
           : [];
-        gatewayState.cliProxyModelProbes += 1;
-        audit.credentialFreeCliProxyProbe = true;
-        audit.cliProxyLeaseInstall = lease.generation;
+        gatewayState.proxyGatewayModelProbes += 1;
+        audit.credentialFreeProxyGatewayProbe = true;
+        audit.proxyGatewayLeaseInstall = lease.generation;
         audit.authenticatedRouterProbe = probeModels.includes(SMOKE_MODEL);
         writeJson(response, 200, { outcome: probeModels.length > 0 ? "ok" : "empty", latencyMs: Math.max(0, Date.now() - probeStartedAtMs) });
         return;
@@ -946,7 +946,7 @@ export async function startHarnessServers(secretCanary, { gatewayPort = 1340 } =
     }
   };
   gateway.once("close", () => {
-    clearHarnessCliProxyLease();
+    clearHarnessProxyGatewayLease();
     disconnectProviderStreams();
   });
   let gatewayBoundPort;
@@ -976,7 +976,7 @@ export async function startHarnessServers(secretCanary, { gatewayPort = 1340 } =
       return [...active].some(providerId => matched.has(providerId) && !baseline.has(providerId));
     },
     async close() {
-      clearHarnessCliProxyLease();
+      clearHarnessProxyGatewayLease();
       disconnectProviderStreams();
       const errors = [];
       try { await closeServer(gateway, "gateway harness"); }
@@ -1096,22 +1096,22 @@ async function assertCredentialPersistence(temporary, secretCanary, expectedBase
   const secretFiles = [];
   const needles = [Buffer.from(secretCanary, "utf8"), Buffer.from(secretCanary, "utf16le")];
   for (const file of files) if (await fileContainsAny(file, needles)) secretFiles.push(path.relative(temporary, file));
-  if (secretFiles.length > 0) throw new Error(`9Router API key was persisted in plaintext: ${secretFiles.join(", ")}`);
+  if (secretFiles.length > 0) throw new Error(`Proxy Gateway API key was persisted in plaintext: ${secretFiles.join(", ")}`);
 
-  const credentialFiles = files.filter(file => path.basename(file) === "cli-proxy-provider.json");
-  if (credentialFiles.length !== 1) throw new Error(`Expected exactly one encrypted 9Router credential document, found ${credentialFiles.length}`);
+  const credentialFiles = files.filter(file => path.basename(file) === "proxy-gateway-provider.json");
+  if (credentialFiles.length !== 1) throw new Error(`Expected exactly one encrypted Proxy Gateway credential document, found ${credentialFiles.length}`);
   const document = JSON.parse(await readFile(credentialFiles[0], "utf8"));
   if (document?.schemaVersion !== 1 || typeof document.apiKeyCiphertext !== "string" || document.apiKeyCiphertext.length === 0) {
-    throw new Error("Windows 9Router credential document does not contain an encrypted API key");
+    throw new Error("Windows Proxy Gateway credential document does not contain an encrypted API key");
   }
   if (document.config?.baseUrl !== expectedBaseUrl || document.config?.model !== SMOKE_MODEL || document.config?.protocol !== "chat-completions") {
-    throw new Error("Persisted 9Router public configuration does not match the completed UI flow");
+    throw new Error("Persisted Proxy Gateway public configuration does not match the completed UI flow");
   }
 }
 
 function redactSensitive(value, secretCanary) {
   return redactLocalExecGeneration(value)
-    .split(secretCanary).join("[REDACTED-9ROUTER-KEY]")
+    .split(secretCanary).join("[REDACTED-PROXY-GATEWAY-KEY]")
     .replace(/Bearer\s+[^\s"']+/gi, "Bearer [REDACTED]")
     .replace(/("apiKey"\s*:\s*")[^"]+("?)/gi, "$1[REDACTED]$2");
 }
@@ -1151,10 +1151,10 @@ async function writeFailureArtifacts({ cdp, child, executable, userDataDir, data
       localExecPingFrames: harness.gatewayState.localExecPingFrames,
       localExecHelloProviders: harness.gatewayState.localExecHelloProviders,
       webauthnHelloProviders: harness.gatewayState.webauthnHelloProviders,
-      cliProxyLeaseActive: harness.gatewayState.cliProxyLeaseActive,
-      cliProxyLeaseInstalls: harness.gatewayState.cliProxyLeaseInstalls,
-      cliProxyModelProbes: harness.gatewayState.cliProxyModelProbes,
-      cliProxyProbeHeld: harness.gatewayState.cliProxyProbeHeld,
+      proxyGatewayLeaseActive: harness.gatewayState.proxyGatewayLeaseActive,
+      proxyGatewayLeaseInstalls: harness.gatewayState.proxyGatewayLeaseInstalls,
+      proxyGatewayModelProbes: harness.gatewayState.proxyGatewayModelProbes,
+      proxyGatewayProbeHeld: harness.gatewayState.proxyGatewayProbeHeld,
     },
   };
   const diagnostic = redactSensitive(JSON.stringify({
@@ -1179,17 +1179,17 @@ async function runBasicSmoke(verified, environment, userDataDir, logs) {
   try {
     launched = await launchPortable(verified, environment, userDataDir, logs, handle => { launched = handle; }, smokeStartedAtMs);
     await openRouterSettings(launched.cdp);
-    await select9RouterProvider(launched.cdp);
+    await selectProxyGatewayProvider(launched.cdp);
     await waitForRendererState(
       launched.cdp,
-      `(async () => { const input = document.querySelector('input[aria-label="9Router Base URL"]'); const state = await window.desktop.agent.getInferenceRouter(); return { provider: state?.provider ?? null, hasEditableBaseUrl: input instanceof HTMLInputElement && !input.disabled && !input.readOnly, baseUrl: input instanceof HTMLInputElement ? input.value : null, text: document.body?.innerText ?? "" }; })()`,
-      value => value?.provider === "cli-proxy" && value.hasEditableBaseUrl === true && value.baseUrl === "http://127.0.0.1:20128/v1" && /9Router connection/i.test(value.text ?? ""),
-      "Fresh isolated profile cannot select 9Router or edit its Base URL",
+      `(async () => { const input = document.querySelector('input[aria-label="Proxy Gateway Base URL"]'); const state = await window.desktop.agent.getInferenceRouter(); return { provider: state?.provider ?? null, hasEditableBaseUrl: input instanceof HTMLInputElement && !input.disabled && !input.readOnly, baseUrl: input instanceof HTMLInputElement ? input.value : null, text: document.body?.innerText ?? "" }; })()`,
+      value => value?.provider === "proxy-gateway" && value.hasEditableBaseUrl === true && value.baseUrl === "http://127.0.0.1:20128/v1" && /Proxy Gateway connection/i.test(value.text ?? ""),
+      "Fresh isolated profile cannot select Proxy Gateway or edit its Base URL",
     );
     await stopPortableGracefully(launched, { label: "Basic packaged smoke could not exit through Electron's normal close path" });
     launched = undefined;
     console.log(`PASS Windows packaged launch smoke: ${verified.executable}`);
-    console.log("Fresh isolated profile mounted the clean renderer and reached the 9Router settings surface.");
+    console.log("Fresh isolated profile mounted the clean renderer and reached the Proxy Gateway settings surface.");
   } catch (error) {
     failure = error;
     if (logs.length > 0) process.stderr.write(`\n--- packaged process output ---\n${logs.join("").slice(-16_384)}\n`);
@@ -1247,33 +1247,33 @@ async function runFullLoginFreeSmoke(verified, temporary, baseEnvironment, userD
     phase = "fresh-profile-launch";
     launched = await launchPortable(verified, environment, userDataDir, logs, handle => { launched = handle; }, smokeStartedAtMs);
     await assertSignedOutLanding(launched.cdp, "Fresh profile did not begin at the real signed-out landing");
-    const initial = await launched.cdp.evaluate(`(async () => { const [credential, router, runtime] = await Promise.all([window.desktop.cliProxy.status(), window.desktop.agent.getInferenceRouter(), window.desktop.agent.getBoxRuntime()]); return { configured: credential?.configured === true, provider: router?.provider ?? null, mode: runtime?.mode ?? null }; })()`);
+    const initial = await launched.cdp.evaluate(`(async () => { const [credential, router, runtime] = await Promise.all([window.desktop.proxyGateway.status(), window.desktop.agent.getInferenceRouter(), window.desktop.agent.getBoxRuntime()]); return { configured: credential?.configured === true, provider: router?.provider ?? null, mode: runtime?.mode ?? null }; })()`);
     if (initial?.configured || initial?.provider !== "cursor" || initial?.mode !== "remote") throw new Error(`Fresh profile inherited router state: ${JSON.stringify(initial)}`);
 
     phase = "provider-selection";
     await openRouterSettings(launched.cdp);
-    await select9RouterProvider(launched.cdp);
+    await selectProxyGatewayProvider(launched.cdp);
 
     phase = "credential-save-with-blank-model";
     const inputResult = await launched.cdp.evaluate(setInputsExpression({
-      "9Router Base URL": servers.routerBaseUrl,
-      "9Router API key": secretCanary,
-      "9Router model": "",
+      "Proxy Gateway Base URL": servers.routerBaseUrl,
+      "Proxy Gateway API key": secretCanary,
+      "Proxy Gateway model": "",
     }));
-    if (!Object.values(inputResult ?? {}).every(Boolean)) throw new Error(`Could not fill fresh 9Router settings: ${JSON.stringify(inputResult)}`);
-    await clickButton(launched.cdp, "Save 9Router", "Fresh profile could not save the 9Router credential");
+    if (!Object.values(inputResult ?? {}).every(Boolean)) throw new Error(`Could not fill fresh Proxy Gateway settings: ${JSON.stringify(inputResult)}`);
+    await clickButton(launched.cdp, "Save Proxy Gateway", "Fresh profile could not save the Proxy Gateway credential");
     await waitForRendererState(
       launched.cdp,
-      `(async () => { const status = await window.desktop.cliProxy.status(); const key = document.querySelector('input[aria-label="9Router API key"]'); return { configured: status?.configured === true, persistent: status?.isPersistent === true, model: status?.model ?? null, keyCleared: key instanceof HTMLInputElement && key.value === '', text: document.body?.innerText ?? '' }; })()`,
+      `(async () => { const status = await window.desktop.proxyGateway.status(); const key = document.querySelector('input[aria-label="Proxy Gateway API key"]'); return { configured: status?.configured === true, persistent: status?.isPersistent === true, model: status?.model ?? null, keyCleared: key instanceof HTMLInputElement && key.value === '', text: document.body?.innerText ?? '' }; })()`,
       value => value?.configured === true && value.persistent === true && value.model === "" && value.keyCleared === true && /encrypted by the operating system/i.test(value.text ?? ""),
       "Windows did not persist the blank-model credential with OS encryption",
     );
 
     phase = "models-probe";
-    await clickButton(launched.cdp, "Test & load models", "Fresh profile could not test the saved 9Router credential");
+    await clickButton(launched.cdp, "Test & load models", "Fresh profile could not test the saved Proxy Gateway credential");
     await waitForRendererState(
       launched.cdp,
-      `(() => ({ options: [...document.querySelectorAll('#sand-9router-models option')].map(option => option.value), text: document.body?.innerText ?? '' }))()`,
+      `(() => ({ options: [...document.querySelectorAll('#sand-proxy-gateway-models option')].map(option => option.value), text: document.body?.innerText ?? '' }))()`,
       value => value?.options?.length === 2
         && value.options.includes(SMOKE_MODEL)
         && value.options.includes(SECOND_SMOKE_MODEL)
@@ -1291,17 +1291,17 @@ async function runFullLoginFreeSmoke(verified, temporary, baseEnvironment, userD
     await openRouterSettings(launched.cdp);
 
     phase = "model-save";
-    const modelResult = await launched.cdp.evaluate(setInputsExpression({ "9Router model": SMOKE_MODEL }));
-    if (modelResult?.["9Router model"] !== true) throw new Error("Could not select the probed 9Router model");
-    await clickButton(launched.cdp, "Save 9Router", "Selected 9Router model could not be saved");
+    const modelResult = await launched.cdp.evaluate(setInputsExpression({ "Proxy Gateway model": SMOKE_MODEL }));
+    if (modelResult?.["Proxy Gateway model"] !== true) throw new Error("Could not select the probed Proxy Gateway model");
+    await clickButton(launched.cdp, "Save Proxy Gateway", "Selected Proxy Gateway model could not be saved");
     await waitForRendererState(
       launched.cdp,
-      `(async () => { const status = await window.desktop.cliProxy.status(); return { configured: status?.configured === true, persistent: status?.isPersistent === true, model: status?.model ?? null }; })()`,
+      `(async () => { const status = await window.desktop.proxyGateway.status(); return { configured: status?.configured === true, persistent: status?.isPersistent === true, model: status?.model ?? null }; })()`,
       value => value?.configured === true && value.persistent === true && value.model === SMOKE_MODEL,
-      "Selected 9Router model did not persist",
+      "Selected Proxy Gateway model did not persist",
     );
     await closeSettings(launched.cdp);
-    await assertSignedOutLanding(launched.cdp, "9Router without Local Docker incorrectly bypassed sign-in");
+    await assertSignedOutLanding(launched.cdp, "Proxy Gateway without Local Docker incorrectly bypassed sign-in");
     await openRouterSettings(launched.cdp);
 
     phase = "strict-docker-control-plane";
@@ -1309,7 +1309,7 @@ async function runFullLoginFreeSmoke(verified, temporary, baseEnvironment, userD
       launched.cdp,
       `(() => { const dialog = document.querySelector('[role="dialog"][aria-label="Grok Bot settings"]'); const switches = [...(dialog?.querySelectorAll('button[role="switch"]') ?? [])]; const matching = switches.filter(node => node instanceof HTMLButtonElement && node.getAttribute('aria-label') === 'Use local Docker VM' && node.isConnected && node.getClientRects().length > 0); const toggle = matching.length === 1 ? matching[0] : null; const ready = toggle instanceof HTMLButtonElement && !toggle.disabled && toggle.getAttribute('aria-checked') === 'false'; if (ready) toggle.click(); return { clicked: ready, matchCount: matching.length, checked: toggle?.getAttribute('aria-checked') ?? null, disabled: toggle?.disabled ?? null, switches: switches.map(node => ({ label: node.getAttribute('aria-label'), checked: node.getAttribute('aria-checked'), disabled: node.disabled, visible: node.isConnected && node.getClientRects().length > 0 })) }; })()`,
       value => value?.clicked === true,
-      "Local Docker switch was not available from the fresh 9Router profile",
+      "Local Docker switch was not available from the fresh Proxy Gateway profile",
     );
     await waitForRendererState(
       launched.cdp,
@@ -1322,17 +1322,17 @@ async function runFullLoginFreeSmoke(verified, temporary, baseEnvironment, userD
     phase = "save-and-continue-without-sign-in";
     const continueBaseline = {
       eventConnections: servers.gatewayState.eventConnections,
-      leaseInstalls: servers.gatewayState.cliProxyLeaseInstalls,
-      modelProbes: servers.gatewayState.cliProxyModelProbes,
+      leaseInstalls: servers.gatewayState.proxyGatewayLeaseInstalls,
+      modelProbes: servers.gatewayState.proxyGatewayModelProbes,
     };
-    servers.gatewayState.holdNextCliProxyProbe = true;
+    servers.gatewayState.holdNextProxyGatewayProbe = true;
     await clickButton(
       launched.cdp,
       "Save & continue without sign-in",
-      "Ready local 9Router workspace did not expose its sign-in-free continuation",
+      "Ready local Proxy Gateway workspace did not expose its sign-in-free continuation",
     );
     await waitForHarnessState(
-      () => servers.gatewayState.cliProxyProbeHeld === true,
+      () => servers.gatewayState.proxyGatewayProbeHeld === true,
       "Save & continue did not reach the leased production model probe",
       60_000,
     );
@@ -1340,18 +1340,18 @@ async function runFullLoginFreeSmoke(verified, temporary, baseEnvironment, userD
     if (blockedContinue?.settingsOpen !== true || blockedContinue.preparing !== true) {
       throw new Error(`Settings closed before the leased model probe and coordinator readiness completed: ${JSON.stringify(blockedContinue)}`);
     }
-    servers.gatewayState.releaseHeldCliProxyProbe?.();
+    servers.gatewayState.releaseHeldProxyGatewayProbe?.();
     await waitForRendererState(
       launched.cdp,
       `(() => { const connected = document.querySelector('[role="status"][aria-label="Connected"]'); return { settingsOpen: document.querySelector('[role="dialog"][aria-label="Grok Bot settings"]') != null, workspace: document.querySelector('.sand-shell')?.getAttribute('data-workspace') ?? null, connected: connected != null && connected.isConnected && connected.getClientRects().length > 0, text: document.body?.innerText ?? '' }; })()`,
-      value => value?.settingsOpen === false && value.workspace === "local-9router" && value.connected === true,
-      "Save & continue did not close settings into the local 9Router workspace",
+      value => value?.settingsOpen === false && value.workspace === "local-proxy-gateway" && value.connected === true,
+      "Save & continue did not close settings into the local Proxy Gateway workspace",
       60_000,
     );
     const readContinueDelta = () => ({
       eventConnections: servers.gatewayState.eventConnections - continueBaseline.eventConnections,
-      leaseInstalls: servers.gatewayState.cliProxyLeaseInstalls - continueBaseline.leaseInstalls,
-      modelProbes: servers.gatewayState.cliProxyModelProbes - continueBaseline.modelProbes,
+      leaseInstalls: servers.gatewayState.proxyGatewayLeaseInstalls - continueBaseline.leaseInstalls,
+      modelProbes: servers.gatewayState.proxyGatewayModelProbes - continueBaseline.modelProbes,
     });
     const continueDelta = readContinueDelta();
     if (continueDelta.eventConnections !== 1 || continueDelta.leaseInstalls !== 1 || continueDelta.modelProbes !== 1) {
@@ -1362,7 +1362,7 @@ async function runFullLoginFreeSmoke(verified, temporary, baseEnvironment, userD
       const stableDelta = readContinueDelta();
       const stableRenderer = await launched.cdp.evaluate(`(() => { const connected = document.querySelector('[role="status"][aria-label="Connected"]'); return { settingsOpen: document.querySelector('[role="dialog"][aria-label="Grok Bot settings"]') != null, workspace: document.querySelector('.sand-shell')?.getAttribute('data-workspace') ?? null, connected: connected != null && connected.isConnected && connected.getClientRects().length > 0 }; })()`);
       if (stableDelta.eventConnections !== 1 || stableDelta.leaseInstalls !== 1 || stableDelta.modelProbes !== 1
-        || stableRenderer?.settingsOpen !== false || stableRenderer.workspace !== "local-9router" || stableRenderer.connected !== true) {
+        || stableRenderer?.settingsOpen !== false || stableRenderer.workspace !== "local-proxy-gateway" || stableRenderer.connected !== true) {
         throw new Error(`Save & continue activation did not remain stable: ${JSON.stringify({ delta: stableDelta, renderer: stableRenderer })}`);
       }
       await delay(100);
@@ -1383,7 +1383,7 @@ async function runFullLoginFreeSmoke(verified, temporary, baseEnvironment, userD
       label: "First packaged process could not complete a clean lease-revoking quit",
       leaseRevoked: () => servers.gatewayRequests
         .slice(firstQuitRequestIndex)
-        .some(request => request.url === "/api/setHostSettings" && request.clearedCliProxyLease === true),
+        .some(request => request.url === "/api/setHostSettings" && request.clearedProxyGatewayLease === true),
     });
     if (!firstExitState.onlyExpectedPersistentDaemon) {
       throw new Error("First graceful quit did not leave exactly one identity-verified local-exec daemon");
@@ -1464,8 +1464,8 @@ async function runFullLoginFreeSmoke(verified, temporary, baseEnvironment, userD
       true,
       "Persistent relaunch did not restart the stopped Local Docker VM",
     );
-    const savedInputs = await launched.cdp.evaluate(`(() => { const configure = document.querySelector('button[aria-label="Configure 9Router"]'); return { configureVisible: configure != null && configure.getClientRects().length > 0 }; })()`);
-    if (savedInputs?.configureVisible) throw new Error("Persisted local workspace returned to the central Configure 9Router landing");
+    const savedInputs = await launched.cdp.evaluate(`(() => { const configure = document.querySelector('button[aria-label="Configure Proxy Gateway"]'); return { configureVisible: configure != null && configure.getClientRects().length > 0 }; })()`);
+    if (savedInputs?.configureVisible) throw new Error("Persisted local workspace returned to the central Configure Proxy Gateway landing");
 
     phase = "final-persistence-scan";
     const finalQuitRequestIndex = servers.gatewayRequests.length;
@@ -1473,7 +1473,7 @@ async function runFullLoginFreeSmoke(verified, temporary, baseEnvironment, userD
       label: "Relaunched packaged process could not complete a clean lease-revoking quit",
       leaseRevoked: () => servers.gatewayRequests
         .slice(finalQuitRequestIndex)
-        .some(request => request.url === "/api/setHostSettings" && request.clearedCliProxyLease === true),
+        .some(request => request.url === "/api/setHostSettings" && request.clearedProxyGatewayLease === true),
     });
     if (!finalExitState.onlyExpectedPersistentDaemon) {
       throw new Error("Final graceful quit did not leave exactly one identity-verified local-exec daemon");
@@ -1523,36 +1523,36 @@ async function runFullLoginFreeSmoke(verified, temporary, baseEnvironment, userD
         throw new Error(`Optional signed-out coordinator command did not use its bounded response contract: ${route}`);
       }
     }
-    if (JSON.stringify(servers.gatewayRequests).includes(secretCanary)) throw new Error("9Router API key reached the gateway audit log");
+    if (JSON.stringify(servers.gatewayRequests).includes(secretCanary)) throw new Error("Proxy Gateway API key reached the gateway audit log");
     if (servers.gatewayRequests.filter(request => request.url === "/events").length < 2) throw new Error("Coordinator did not reconnect its authenticated gateway event stream");
-    for (const route of ["/api/getHostSettings", "/api/setHostSettings", "/api/setBoxSecrets", "/api/setWindowFocused", "/api/listAgents", "/api/leaseCliProxyCredential", "/api/probeCliProxyModels"]) {
+    for (const route of ["/api/getHostSettings", "/api/setHostSettings", "/api/setBoxSecrets", "/api/setWindowFocused", "/api/listAgents", "/api/leaseProxyGatewayCredential", "/api/probeProxyGatewayModels"]) {
       if (!servers.gatewayRequests.some(request => request.url === route)) throw new Error(`Coordinator resync did not reach ${route}`);
     }
-    const leaseRequests = servers.gatewayRequests.filter(request => request.url === "/api/leaseCliProxyCredential");
-    const containerProbeRequests = servers.gatewayRequests.filter(request => request.url === "/api/probeCliProxyModels");
-    if (leaseRequests.length < 2 || leaseRequests.some(request => request.cliProxyLeaseValidated !== true)) {
-      throw new Error("Fresh and recovered Local Docker sessions did not each receive a strictly validated memory-only 9Router credential lease");
+    const leaseRequests = servers.gatewayRequests.filter(request => request.url === "/api/leaseProxyGatewayCredential");
+    const containerProbeRequests = servers.gatewayRequests.filter(request => request.url === "/api/probeProxyGatewayModels");
+    if (leaseRequests.length < 2 || leaseRequests.some(request => request.proxyGatewayLeaseValidated !== true)) {
+      throw new Error("Fresh and recovered Local Docker sessions did not each receive a strictly validated memory-only Proxy Gateway credential lease");
     }
-    if (containerProbeRequests.length < 2 || containerProbeRequests.some(request => request.credentialFreeCliProxyProbe !== true || request.authenticatedRouterProbe !== true || !(request.cliProxyLeaseInstall > 0))) {
-      throw new Error("Fresh and recovered Local Docker sessions did not probe 9Router through the credential-free leased gateway contract");
+    if (containerProbeRequests.length < 2 || containerProbeRequests.some(request => request.credentialFreeProxyGatewayProbe !== true || request.authenticatedRouterProbe !== true || !(request.proxyGatewayLeaseInstall > 0))) {
+      throw new Error("Fresh and recovered Local Docker sessions did not probe Proxy Gateway through the credential-free leased gateway contract");
     }
-    if (servers.gatewayState.healthChecks < 1 || servers.gatewayState.hostSettings.inferenceProvider !== "cli-proxy") {
+    if (servers.gatewayState.healthChecks < 1 || servers.gatewayState.hostSettings.inferenceProvider !== "proxy-gateway") {
       throw new Error("Local Docker health or coordinator host-settings resync did not become authoritative");
     }
-    if (!servers.gatewayRequests.some(request => request.url === "/api/setHostSettings" && request.clearedCliProxyLease === true)) {
-      throw new Error("Final 9Router save did not revoke the prior host credential lease over the authenticated coordinator channel");
+    if (!servers.gatewayRequests.some(request => request.url === "/api/setHostSettings" && request.clearedProxyGatewayLease === true)) {
+      throw new Error("Final Proxy Gateway save did not revoke the prior host credential lease over the authenticated coordinator channel");
     }
-    if (servers.gatewayState.cliProxyLeaseActive !== false) throw new Error("Final graceful quit left the mock host credential lease active");
+    if (servers.gatewayState.proxyGatewayLeaseActive !== false) throw new Error("Final graceful quit left the mock host credential lease active");
     if (!servers.gatewayRequests.some(request => request.url === "/api/listAgents")) throw new Error("Login-free workspace never reached the coordinator roster path");
     const transcript = await readFile(dockerTranscriptPath, "utf8");
     const dockerCommands = parseFakeDockerTranscript(transcript);
     for (const command of ["info", "network", "volume", "run", "exec", "inspect"]) {
       if (!dockerCommands.some(args => args[0] === command)) throw new Error(`Strict Docker transcript missed ${command}`);
     }
-    if (transcript.includes(secretCanary)) throw new Error("9Router API key reached the Docker transcript");
+    if (transcript.includes(secretCanary)) throw new Error("Proxy Gateway API key reached the Docker transcript");
     assertFakeDockerQuitRecoveryLifecycle(dockerCommands);
 
-    console.log(`PASS Windows packaged login-free 9Router smoke: ${verified.executable}`);
+    console.log(`PASS Windows packaged login-free Proxy Gateway smoke: ${verified.executable}`);
     console.log("Fresh profile saved an OS-encrypted credential, loaded models, enforced both readiness blockers, used Save & continue without sign-in, adopted exactly one persistent verified daemon on relaunch, stopped its owned container on quit, restarted it on persistent relaunch, and stopped it again on final quit.");
     console.log("Docker and the bounded gateway control/roster protocol were simulated; live Docker Desktop, Tailscale, VNC, inference turns, and native tool execution remain separate environment tests.");
   } catch (error) {
@@ -1574,7 +1574,7 @@ async function runFullLoginFreeSmoke(verified, temporary, baseEnvironment, userD
     });
     if (logs.length > 0) process.stderr.write(`\n--- packaged process output (redacted) ---\n${redactSensitive(logs.join("").slice(-16_384), secretCanary)}\n`);
     const message = redactSensitive(error instanceof Error ? error.message : error, secretCanary);
-    failure = new Error(`Windows login-free 9Router smoke failed during ${phase}: ${message}`);
+    failure = new Error(`Windows login-free Proxy Gateway smoke failed during ${phase}: ${message}`);
     process.stderr.write(`${failure.message}\n`);
     throw failure;
   } finally {
@@ -1583,7 +1583,7 @@ async function runFullLoginFreeSmoke(verified, temporary, baseEnvironment, userD
       try { await operation(); }
       catch (error) { cleanupErrors.push(new Error(`${label}: ${error instanceof Error ? error.message : String(error)}`, { cause: error })); }
     };
-    await cleanup("release held 9Router model probe", async () => servers?.gatewayState.releaseHeldCliProxyProbe?.());
+    await cleanup("release held Proxy Gateway model probe", async () => servers?.gatewayState.releaseHeldProxyGatewayProbe?.());
     await cleanup("close renderer debugger", async () => launched?.cdp?.close());
     await cleanup("stop packaged process tree", async () => stopProcess(launched));
     await cleanup("stop identity-verified local-exec daemon", async () => terminateVerifiedLocalExecDaemon({
