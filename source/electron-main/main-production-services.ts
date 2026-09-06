@@ -9,6 +9,7 @@ import {
   createSettingsRoutedHostConnector,
   stopLocalDockerBoxForQuit,
 } from "./box/local-docker-host-connector.js";
+import { stopSandboxComputerTunnel } from "./box/sandbox-computer-connector.js";
 import { createSandClientPauseControl } from "./box/box-client-pause.js";
 import { createSandMigrationWatcher } from "./box/box-migration-watcher.js";
 import type { RecreateResult } from "./box/box-recreate-commands.js";
@@ -900,6 +901,7 @@ export function createElectronMainProductionComposition(bindings: ElectronMainPr
       quitState = "flushing";
       void settlePartialDesktopQuit({
         stopLocalDocker: () => stopLocalDockerBoxForQuit(partialSettings.settingsStore.settingsPath),
+        stopSandboxComputer: () => stopSandboxComputerTunnel(),
         disposeGraph,
         reportFailure: bindings.reportFailure,
       }).finally(() => {
@@ -973,6 +975,11 @@ export function createElectronMainProductionComposition(bindings: ElectronMainPr
           // remain after coordinator/leg disposal as the final host mutation.
           try {
             await stopLocalDockerBoxForQuit(settings.settingsStore.settingsPath);
+          } catch (error) {
+            shutdownFailures.push(error);
+          }
+          try {
+            await stopSandboxComputerTunnel();
           } catch (error) {
             shutdownFailures.push(error);
           }

@@ -51,6 +51,25 @@ export const ZH_TRANSLATIONS: TranslationDictionary = {
   "Use your existing ChatGPT sign-in from Codex with Grok Bot's connected plugins.": "使用 Codex 中已有的 ChatGPT 登录状态，并配合 Grok Bot 已连接的插件。",
   "Route through your OpenRouter account and selected model.": "通过你的 OpenRouter 账户和所选模型进行路由。",
 
+  // ---- Sandbox Computer (injected box-runtime surface) ----
+  "Sandbox Computer": "常开沙箱计算机",
+  "Local Docker": "本地 Docker",
+  "Cloud VM": "云端虚拟机",
+  "Computer runtime": "运行载体",
+  "Run shell, computer use and files in the always-on sandbox managed by Grok Bot.": "在由 Grok Bot 托管的常开沙箱中运行 Shell、电脑使用与文件操作。",
+  "Shell, files and computer use run in a local Docker container.": "Shell、文件与电脑使用在本机 Docker 容器中运行。",
+  "SSH into an always-on remote Linux sandbox and tunnel its gateway to localhost:1340.": "通过 SSH 连接一台常开的远程 Linux 沙箱，并将其网关隧道映射到 localhost:1340。",
+  "Sandbox Computer is ready.": "常开沙箱计算机已就绪。",
+  "SSH tunnel is up; waiting for the remote gateway.": "SSH 隧道已建立，正在等待远程网关。",
+  "Not connected. The SSH tunnel is off.": "未连接。SSH 隧道处于关闭状态。",
+  "SSH tunnel is starting.": "SSH 隧道正在启动。",
+  "Host": "主机",
+  "Port": "端口",
+  "SSH user": "SSH 用户名",
+  "SSH private key path": "SSH 私钥路径",
+  "Save & connect": "保存并连接",
+  "Connecting…": "正在连接…",
+
   // ---- Feedback ----
   "Send Feedback": "发送反馈",
   "Copied": "已复制",

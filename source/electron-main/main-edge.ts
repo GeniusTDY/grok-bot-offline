@@ -8,7 +8,7 @@ import { sandWebauthnProxyMirroredEnablement } from "../shared/webauthn-proxy-av
 import { reportDesktopEdgeFailure } from "./desktop-edge-failures.js";
 import { isSandInferenceProvider } from "../shared/inference-router.js";
 import { getLocalInferenceCliStatus } from "../shared/node/inference-router-local.js";
-import { isSandBoxRuntime } from "../shared/box-runtime.js";
+import { isSandBoxRuntime, normalizeSandboxComputerConfig, type SandBoxRuntime, type SandboxComputerConfig } from "../shared/box-runtime.js";
 import {
   getLocalDockerStatus,
   revokeCliProxyLeaseOrStopOwnedLocalDocker,
@@ -16,6 +16,11 @@ import {
   startLocalDockerBox,
   stopLocalDockerBox,
 } from "./box/local-docker-host-connector.js";
+import {
+  ensureSandboxComputerTunnel,
+  getSandboxComputerStatus,
+  stopSandboxComputerTunnel,
+} from "./box/sandbox-computer-connector.js";
 
 export const MAIN_EDGE_UNSERVED = "main/unserved-method";
 export const MAIN_EDGE_UPDATE_UNAVAILABLE = "main/update-unavailable";
@@ -83,6 +88,7 @@ function updateService(deps: MainEdgeDeps) { return required(deps.readLiveUpdate
 function themeController(deps: MainEdgeDeps) { return required(deps.readThemeController, MAIN_EDGE_THEME_UNAVAILABLE, "The theme controller is not running."); }
 function egressController(deps: MainEdgeDeps) { return required(deps.readEgressTunnelController, MAIN_EDGE_EGRESS_TUNNEL_UNAVAILABLE, "The egress tunnel controller is not running."); }
 async function echo(deps: MainEdgeDeps, field: string, value: unknown, label: string): Promise<unknown> { const result = await deps.syncHostSettingsToBox({ [field]: value }); if (result == null) throw new SandHostSettingsUnreachableError(`Couldn't reach the computer to save ${label}.`); return result[field] ?? null; }
+function sandboxComputerConfig(deps: MainEdgeDeps): SandboxComputerConfig { return normalizeSandboxComputerConfig(invoke(deps.settingsStore, "getSandboxComputerConfig")); }
 function computerUseModel(deps: MainEdgeDeps): unknown { const stored = invoke(deps.agentPrefsStore, "getComputerUseModel"); const override = deps.getComputerUseModelOverride(); return resolveComputerUseModelSelection({ ...(isSandAgentModelSelection(stored) ? { storedModel: stored } : {}), ...(isSandAgentModelSelection(override) ? { overrideModel: override } : {}) }) ?? null; }
 function parseAgentModel(value: unknown, requireNonWhitespaceId: boolean): { modelId: string; maxMode: boolean; parameters: { id: string; value: string }[] } | null {
   if (typeof value !== "object" || value == null || Array.isArray(value)) return null;
@@ -172,7 +178,21 @@ export function createMainEdgeHandlers(deps: MainEdgeDeps): HandlerMap {
         local: getLocalInferenceCliStatus(),
       };
     },
-    getBoxRuntime: async () => { const mode = invoke(deps.settingsStore, "getBoxRuntime"); invariant(isSandBoxRuntime(mode), "Unknown box runtime."); return { mode, status: await (deps.readLocalDockerStatus ?? getLocalDockerStatus)(String(Reflect.get(deps.settingsStore, "settingsPath")), invoke(deps.settingsStore, "getInferenceProvider")) }; },
+    getBoxRuntime: async () => {
+      const mode = invoke(deps.settingsStore, "getBoxRuntime");
+      invariant(isSandBoxRuntime(mode), "Unknown box runtime.");
+      const settingsPath = String(Reflect.get(deps.settingsStore, "settingsPath"));
+      const inferenceProvider = invoke(deps.settingsStore, "getInferenceProvider");
+      if (mode === "sandbox-computer") {
+        return { mode, status: await getSandboxComputerStatus(sandboxComputerConfig(deps)) };
+      }
+      return { mode, status: await (deps.readLocalDockerStatus ?? getLocalDockerStatus)(settingsPath, inferenceProvider) };
+    },
+    getSandboxComputerConfig: () => sandboxComputerConfig(deps),
+    setSandboxComputerConfig: (raw) => {
+      invoke(deps.settingsStore, "setSandboxComputerConfig", normalizeSandboxComputerConfig(req(raw)));
+      return invoke(deps.settingsStore, "getSandboxComputerConfig");
+    },
     setBoxRuntime: async (raw) => {
       const mode = req(raw).mode;
       invariant(isSandBoxRuntime(mode), "Unknown box runtime.");
@@ -180,63 +200,76 @@ export function createMainEdgeHandlers(deps: MainEdgeDeps): HandlerMap {
       const previousMode = invoke(deps.settingsStore, "getBoxRuntime");
       invariant(isSandBoxRuntime(previousMode), "Unknown previous box runtime.");
       const inferenceProvider = invoke(deps.settingsStore, "getInferenceProvider");
-      const readStatus = () => (deps.readLocalDockerStatus ?? getLocalDockerStatus)(
-        settingsPath,
-        inferenceProvider,
-      );
-      if (mode === previousMode) {
-        const status = await readStatus();
-        if (mode === "local-docker" && status.ready !== true) {
+      const sandboxConfig = () => sandboxComputerConfig(deps);
+      const readLocalDockerStatus = () => (deps.readLocalDockerStatus ?? getLocalDockerStatus)(settingsPath, inferenceProvider);
+      const readStatus = async () => mode === "sandbox-computer"
+        ? await getSandboxComputerStatus(sandboxConfig())
+        : await readLocalDockerStatus();
+      const stopOwnedLocalDocker = deps.stopOwnedLocalDockerBox
+        ?? (() => stopLocalDockerBox(settingsPath));
+      const stopPreviousBox = async (): Promise<void> => {
+        if (previousMode === "sandbox-computer") await stopSandboxComputerTunnel();
+        else await stopOwnedLocalDocker();
+      };
+      const startModeBox = async (target: SandBoxRuntime): Promise<void> => {
+        if (target === "local-docker") {
           await (deps.startOwnedLocalDockerBox ?? startLocalDockerBox)(
             settingsPath,
             localDockerStartOptionsForProvider(inferenceProvider),
             inferenceProvider,
           );
+        } else if (target === "sandbox-computer") {
+          await ensureSandboxComputerTunnel(sandboxConfig());
+        }
+      };
+      if (mode === previousMode) {
+        if (mode === "sandbox-computer" || mode === "local-docker") {
+          await startModeBox(mode);
           await Promise.resolve(invoke(deps.boxRecovery, "restartCoordinator"));
           return { mode, status: await readStatus() };
         }
-        return { mode, status };
+        return { mode, status: await readLocalDockerStatus() };
       }
       invoke(deps.settingsStore, "setBoxRuntime", mode);
-      const stopOwnedLocalDocker = deps.stopOwnedLocalDockerBox
-        ?? (() => stopLocalDockerBox(settingsPath));
-      let dockerTransitionCompleted = false;
+      const startPreviousBox = (): Promise<void> => startModeBox(previousMode);
+      let transitionCompleted = false;
       try {
-        if (mode === "local-docker") {
-          await (deps.startOwnedLocalDockerBox ?? startLocalDockerBox)(
-            settingsPath,
-            localDockerStartOptionsForProvider(inferenceProvider),
-            inferenceProvider,
-          );
-        } else {
-          await stopOwnedLocalDocker();
+        await stopPreviousBox();
+        if (mode === "local-docker" || mode === "sandbox-computer") {
+          await startModeBox(mode);
         }
-        dockerTransitionCompleted = true;
+        transitionCompleted = true;
         await Promise.resolve(invoke(deps.boxRecovery, "restartCoordinator"));
       } catch (error) {
-        if (mode === "remote" && dockerTransitionCompleted) {
+        if (mode === "remote" && transitionCompleted) {
           return {
             mode,
-            status: await readStatus(),
+            status: await readLocalDockerStatus(),
             reconnectError: error instanceof Error ? error.message : String(error),
           };
         }
         let cleanupError: unknown;
+        let restoreError: unknown;
         let rollbackError: unknown;
         invoke(deps.settingsStore, "setBoxRuntime", previousMode);
         if (mode === "local-docker") {
           try { await stopOwnedLocalDocker(); }
           catch (failure) { cleanupError = failure; }
+        } else if (mode === "sandbox-computer") {
+          try { await stopSandboxComputerTunnel(); }
+          catch (failure) { cleanupError = failure; }
         }
+        try { await startPreviousBox(); }
+        catch (failure) { restoreError = failure; }
         try { await Promise.resolve(invoke(deps.boxRecovery, "restartCoordinator")); }
         catch (failure) { rollbackError = failure; }
-        const rollbackFailures = [cleanupError, rollbackError].filter(
+        const rollbackFailures = [cleanupError, restoreError, rollbackError].filter(
           (failure) => failure !== undefined,
         );
         if (rollbackFailures.length > 0) {
           throw new AggregateError(
             [error, ...rollbackFailures],
-            "Could not change the local Docker runtime or fully restore the previous runtime.",
+            "Could not change the box runtime or fully restore the previous runtime.",
           );
         }
         throw error;

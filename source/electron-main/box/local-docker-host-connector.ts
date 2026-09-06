@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import type { SandSettingsStore } from "../../shared/node/settings/sand-settings-store.js";
 import { hardenWindowsPrivatePath } from "../../shared/node/windows-private-path.js";
+import { ensureSandboxComputerTunnel } from "./sandbox-computer-connector.js";
 import type { RecreateResult } from "./box-recreate-commands.js";
 import type { SandRemoteHostConnector } from "./box-host-connector.js";
 import type { GatewayConnection } from "./gateway-descriptor-cache.js";
@@ -1043,8 +1044,14 @@ export function createSettingsRoutedHostConnector(
     }
     throw new Error("Local Docker provider changed repeatedly while its container was starting.");
   };
+  const sandboxComputerConnect = async (): Promise<GatewayConnection> =>
+    await ensureSandboxComputerTunnel(settings.getSandboxComputerConfig());
   return {
-    connect: async () => settings.getBoxRuntime() === "local-docker" ? await localConnect() : await remote.connect(),
+    connect: async () => {
+      if (settings.getBoxRuntime() === "local-docker") return await localConnect();
+      if (settings.getBoxRuntime() === "sandbox-computer") return await sandboxComputerConnect();
+      return await remote.connect();
+    },
     ...(remote.issueLocalExecDaemonCredential == null ? {} : {
       issueLocalExecDaemonCredential: async () => usesStandaloneLocalWorkspace()
         ? undefined

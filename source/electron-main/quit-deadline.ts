@@ -35,6 +35,7 @@ export async function withDesktopQuitDeadline<T>(
 
 export interface PartialDesktopQuitSettlementOptions {
   readonly stopLocalDocker: () => Promise<void>;
+  readonly stopSandboxComputer: () => Promise<void>;
   readonly disposeGraph: () => Promise<void>;
   readonly reportFailure: (area: string, leg: string, error: unknown) => void;
   readonly disposeTimeoutMs?: number;
@@ -53,6 +54,11 @@ export async function settlePartialDesktopQuit(
     await options.stopLocalDocker();
   } catch (error) {
     reportFailure("coordinator", "cli-proxy-quit-revoke", error);
+  }
+  try {
+    await options.stopSandboxComputer();
+  } catch (error) {
+    reportFailure("coordinator", "sandbox-computer-quit-tunnel", error);
   }
   try {
     await withDesktopQuitDeadline(
